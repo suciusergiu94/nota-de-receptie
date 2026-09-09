@@ -219,12 +219,10 @@ infinit și nu zero.
 rânduri — media ar da o cifră pe care n-o are niciun rând și pe care n-o
 confirmă nicio adunare.
 
-**Cantitatea nu se însumează peste unități diferite.** Totalul de cantitate se
-calculează separat pe `Buc.` și pe `Kg.`. Pe ecran, panoul de totaluri arată
-subtotalul fiecărei unități prezente în document. În PDF, celula de cantitate
-din rândul TOTAL se completează doar când toate rândurile au aceeași unitate;
-altfel rămâne goală, fiindcă un total care adună kilograme cu bucăți ar fi o
-cifră falsă pe un document semnat.
+**Cantitatea nu se totalizează deloc** — nici pe ecran, nici în PDF. U/M poate
+fi `Buc.` sau `Kg.` de la un rând la altul, iar o sumă peste unități diferite
+n-ar însemna nimic. Celula de cantitate din rândul TOTAL al PDF-ului rămâne
+goală, iar panoul de totaluri de pe ecran nu are coloană de cantitate.
 
 ## 5. Metodele expuse frontendului (`app.go`)
 
@@ -305,12 +303,9 @@ sunt read-only și se recalculează la fiecare tastă. Fiecare rând are un buto
 tabelului, ci un bloc cu etichete deasupra valorilor:
 
 ```
-Total cantitate | Total valoare | Total valoare | Total valoare la | Total | Adaos
-                | fără T.V.A.   | cu T.V.A.     | preț de vânzare  | adaos |   %
+Total valoare | Total valoare | Total valoare la | Total | Adaos
+fără T.V.A.   | cu T.V.A.     | preț de vânzare  | adaos |   %
 ```
-
-Sub „Total cantitate” se listează subtotalul fiecărei unități prezente
-(`12,00 Kg.`, `5,00 Buc.`).
 
 **Butoane:** Salvează · Printează (PDF) · Șterge. Ultimele două apar doar pe un
 document deja salvat.
@@ -373,15 +368,15 @@ implicit al sistemului. Anularea dialogului întoarce un drum gol, nu o eroare.
 **Go:**
 
 - `internal/calc` — valorile pe rând, totalurile, adaosul și procentul,
-  cazul `valoareCuTVA = 0`, totalul de cantitate pe unități amestecate.
+  cazul `valoareCuTVA = 0`, și faptul că totalurile nu includ cantitatea.
 - `internal/store` — deschidere și migrare pe o bază goală, salvarea și citirea
   unui document cu rânduri, urcarea contorului de numere, faptul că editarea
   unui produs nu schimbă un document deja salvat, ștergerea unui produs lasă
   rândul întreg cu `product_id` gol, refuzul denumirilor duplicate,
   memorarea și ștergerea furnizorilor.
 - `internal/pdfdoc` — randarea întoarce un PDF nevid pentru un document cu
-  rânduri și pentru unul gol; celula de cantitate din TOTAL e goală la unități
-  amestecate; `Fold`.
+  rânduri și pentru unul gol; celula de cantitate din rândul TOTAL e goală;
+  `Fold`.
 - `app_test.go` — schița de document nou, salvarea cu recalcul, exportul.
 
 **Vitest:** `calc.ts` (aceleași exemple ca partea de Go), `format.ts`
