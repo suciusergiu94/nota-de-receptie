@@ -104,6 +104,10 @@ func TestSaveDocumentExistentNuUrcaContorul(t *testing.T) {
 	setari, _ := s.GetSettings()
 	inainte := setari.NextNr
 
+	// Nr is pushed well above the counter so that any accidental counter
+	// update on the edit path (guard removed, or the WHERE clause alone
+	// relied upon) would be forced to move next_nr and get caught below.
+	salvat.Nr = 50
 	salvat.Furnizor = "Beta SA"
 	if _, err := s.SaveDocument(salvat); err != nil {
 		t.Fatalf("SaveDocument: %v", err)

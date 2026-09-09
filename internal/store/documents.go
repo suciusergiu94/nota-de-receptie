@@ -88,6 +88,12 @@ func (s *Store) randuri(documentID int64) ([]model.Rand, error) {
 // suggestion and the number counter. There is no interleaving in which a save
 // reports failure for a document that was in fact written, and none in which a
 // document exists while the counter still points at its number.
+//
+// On the update path the returned document carries whatever CreatedAt the
+// caller passed in doc, not what is stored: the UPDATE statement never
+// touches created_at, so the persisted row keeps its original value, but this
+// function does not re-read it. GetDocument is the authority for CreatedAt; a
+// caller that needs it correct on the return value must round-trip it itself.
 func (s *Store) SaveDocument(doc model.Document) (model.Document, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
