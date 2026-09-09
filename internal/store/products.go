@@ -69,7 +69,9 @@ func (s *Store) AddProduct(p model.Product) (model.Product, error) {
 
 // SaveProducts brings the catalogue in line with the given list: rows with an
 // id are updated, rows without one are inserted, and anything not in the list
-// is deleted.
+// is deleted. Order is taken entirely from each product's position in the
+// slice (stored as ordine = its index); the Ordine field on the input is
+// ignored, since the slice's order is what the caller actually means.
 //
 // It deliberately does not delete everything and reinsert. document_rows keeps
 // a product_id with ON DELETE SET NULL, and wiping the table would sever every
@@ -84,6 +86,32 @@ func (s *Store) SaveProducts(produse []model.Product) error {
 	}
 	defer tx.Rollback()
 
+	// Pass 1: vacate every existing row's current name into a value that
+	// cannot collide with anything (SQLite checks UNIQUE per statement, not
+	// at commit). Without this, swapping two products' names in one save
+	// would have the first UPDATE collide with a name the other row hasn't
+	// given up yet, even though the end state has no duplicate at all.
+	//
+	// A leading NUL byte was tried first (as a value no real product name
+	// could contain) but modernc.org/sqlite's NOCASE comparison treats it as
+	// a C-string terminator: every "\x00tmp-N" value compares equal to every
+	// other one, which promptly collides across rows instead of avoiding
+	// collisions. A control character that is not a string terminator (SOH)
+	// keeps the per-id suffix significant to the comparison.
+	for _, p := range produse {
+		if p.ID == 0 {
+			continue
+		}
+		locTemp := fmt.Sprintf("\x01tmp-%d", p.ID)
+		if _, err := tx.Exec(`UPDATE products SET denumire = ? WHERE id = ?`, locTemp, p.ID); err != nil {
+			return fmt.Errorf("salvare produse: %w", err)
+		}
+	}
+
+	// Pass 2: write the final values. A genuine duplicate (two entries in
+	// the input asking for the same name) still collides here and is
+	// reported as ErrDenumireDuplicata; a name freed up by pass 1 no longer
+	// blocks a different row from taking it.
 	pastrate := make([]any, 0, len(produse))
 	for i, p := range produse {
 		denumire := strings.TrimSpace(p.Denumire)
@@ -119,6 +147,7 @@ func (s *Store) SaveProducts(produse []model.Product) error {
 		pastrate = append(pastrate, p.ID)
 	}
 
+	// Pass 3: delete anything not carried over.
 	if err := stergeProduseleLipsa(tx, pastrate); err != nil {
 		return err
 	}

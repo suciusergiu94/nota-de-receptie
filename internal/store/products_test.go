@@ -101,6 +101,85 @@ func TestSaveProductsStergeCeLipseste(t *testing.T) {
 	}
 }
 
+func TestSaveProductsSchimbaNumeleIntreEle(t *testing.T) {
+	s := deschide(t)
+	a, _ := s.AddProduct(model.Product{Denumire: "A", UM: "Kg.", CotaTVA: 11})
+	b, _ := s.AddProduct(model.Product{Denumire: "B", UM: "Kg.", CotaTVA: 11})
+
+	// A si B isi schimba numele intre ele intr-un singur apel. Fiecare UPDATE
+	// separat s-ar ciocni cu numele pe care celalalt rand nu l-a eliberat
+	// inca, desi starea finala nu are niciun duplicat.
+	err := s.SaveProducts([]model.Product{
+		{ID: a.ID, Denumire: "B", UM: "Kg.", CotaTVA: 11, Ordine: 0},
+		{ID: b.ID, Denumire: "A", UM: "Kg.", CotaTVA: 11, Ordine: 1},
+	})
+	if err != nil {
+		t.Fatalf("SaveProducts: %v", err)
+	}
+
+	produse, _ := s.ListProducts()
+	if len(produse) != 2 {
+		t.Fatalf("len = %d, vrem 2", len(produse))
+	}
+	if produse[0].ID != a.ID || produse[0].Denumire != "B" {
+		t.Errorf("primul rand = %+v, vrem id-ul lui A cu denumirea B", produse[0])
+	}
+	if produse[1].ID != b.ID || produse[1].Denumire != "A" {
+		t.Errorf("al doilea rand = %+v, vrem id-ul lui B cu denumirea A", produse[1])
+	}
+}
+
+func TestSaveProductsProdusNouIaNumeleEliberat(t *testing.T) {
+	s := deschide(t)
+	a, _ := s.AddProduct(model.Product{Denumire: "A", UM: "Kg.", CotaTVA: 11})
+
+	// A se redenumeste, iar un produs nou preia exact numele pe care A il
+	// elibereaza, in acelasi apel. Trece doar daca vacantarea din pasul 1
+	// ruleaza inaintea scrierii valorilor finale din pasul 2.
+	err := s.SaveProducts([]model.Product{
+		{ID: a.ID, Denumire: "A schimbat", UM: "Kg.", CotaTVA: 11, Ordine: 0},
+		{ID: 0, Denumire: "A", UM: "Kg.", CotaTVA: 11, Ordine: 1},
+	})
+	if err != nil {
+		t.Fatalf("SaveProducts: %v", err)
+	}
+
+	produse, _ := s.ListProducts()
+	if len(produse) != 2 {
+		t.Fatalf("len = %d, vrem 2", len(produse))
+	}
+	if produse[0].ID != a.ID || produse[0].Denumire != "A schimbat" {
+		t.Errorf("primul rand = %+v", produse[0])
+	}
+	if produse[1].ID == 0 || produse[1].ID == a.ID || produse[1].Denumire != "A" {
+		t.Errorf("al doilea rand = %+v, vrem un produs nou numit A", produse[1])
+	}
+}
+
+func TestSaveProductsPastreazaOrdineaDinLista(t *testing.T) {
+	s := deschide(t)
+	a, _ := s.AddProduct(model.Product{Denumire: "A", UM: "Kg.", CotaTVA: 11})
+	b, _ := s.AddProduct(model.Product{Denumire: "B", UM: "Kg.", CotaTVA: 11})
+
+	// B (id mai mare) e trecut inaintea lui A in lista salvata: daca
+	// ListProducts ar ordona doar dupa id, ar intoarce tot A, B - gresit.
+	err := s.SaveProducts([]model.Product{
+		{ID: b.ID, Denumire: "B", UM: "Kg.", CotaTVA: 11, Ordine: 0},
+		{ID: a.ID, Denumire: "A", UM: "Kg.", CotaTVA: 11, Ordine: 1},
+	})
+	if err != nil {
+		t.Fatalf("SaveProducts: %v", err)
+	}
+
+	produse, err := s.ListProducts()
+	if err != nil {
+		t.Fatalf("ListProducts: %v", err)
+	}
+	if len(produse) != 2 || produse[0].ID != b.ID || produse[1].ID != a.ID {
+		t.Errorf("catalogul = %+v, vrem B inaintea lui A", produse)
+	}
+}
+
 func TestSaveProductsRefuzaDuplicatele(t *testing.T) {
 	s := deschide(t)
 	err := s.SaveProducts([]model.Product{
