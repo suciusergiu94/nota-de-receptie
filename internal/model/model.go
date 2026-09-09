@@ -34,11 +34,11 @@ type Product struct {
 // the catalogue must not change a document that is already filed. ProductID
 // records where the row started from and nothing more.
 type Rand struct {
-	ID        int64  `json:"id"`
-	ProductID *int64 `json:"productId"`
-	Pozitie   int    `json:"pozitie"`
-	Denumire  string `json:"denumire"`
-	UM        string `json:"um"`
+	ID        int64   `json:"id"`
+	ProductID *int64  `json:"productId"`
+	Pozitie   int     `json:"pozitie"`
+	Denumire  string  `json:"denumire"`
+	UM        string  `json:"um"`
 	Cantitate float64 `json:"cantitate"`
 	// PretFaraTVA is the purchase price, typed in at reception: it varies
 	// from delivery to delivery, so it is not carried on the product.
