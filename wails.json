@@ -1,0 +1,20 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "nota-de-receptie",
+  "outputfilename": "nota-de-receptie",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "S.C. Largiana Carn S.R.L.",
+    "email": ""
+  },
+  "info": {
+    "companyName": "S.C. Largiana Carn S.R.L.",
+    "productName": "Nota de receptie",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright © 2026 S.C. Largiana Carn S.R.L.",
+    "comments": "Aplicatie pentru completarea, arhivarea si tiparirea notei de receptie."
+  }
+}
