@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/go-pdf/fpdf"
 
@@ -211,13 +212,47 @@ func drawFooter(pdf *fpdf.Fpdf) {
 	pdf.CellFormat(93, 6, "GESTIONAR,", "", 1, "C", false, 0, "")
 }
 
-// num renders a money or quantity value, leaving zero blank the way the paper
-// form leaves unused cells empty.
+// num renders a money or quantity value the Romanian way: comma for the
+// decimal separator, dot grouping the thousands. Zero renders blank, the way
+// the paper form leaves unused cells empty — the opposite of the on-screen
+// choice, and deliberately so.
 func num(v float64) string {
-	if v == 0 {
+	r := calc.Round2(v)
+	if r == 0 {
 		return ""
 	}
-	return strconv.FormatFloat(calc.Round2(v), 'f', 2, 64)
+	neg := r < 0
+	if neg {
+		r = -r
+	}
+	s := strconv.FormatFloat(r, 'f', 2, 64)
+	dot := strings.IndexByte(s, '.')
+	intPart, decPart := groupThousands(s[:dot]), s[dot+1:]
+	if neg {
+		return "-" + intPart + "," + decPart
+	}
+	return intPart + "," + decPart
+}
+
+// groupThousands inserts a "." every three digits from the right. It works on
+// the integer part alone, called before the decimal part is glued back on, so
+// grouping can never reach into the decimals.
+func groupThousands(digits string) string {
+	n := len(digits)
+	if n <= 3 {
+		return digits
+	}
+	lead := n % 3
+	if lead == 0 {
+		lead = 3
+	}
+	var b strings.Builder
+	b.WriteString(digits[:lead])
+	for i := lead; i < n; i += 3 {
+		b.WriteByte('.')
+		b.WriteString(digits[i : i+3])
+	}
+	return b.String()
 }
 
 // formatDate turns an ISO date into the dd/mm/yyyy the form is written in. An
