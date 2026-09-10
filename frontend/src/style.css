@@ -1,0 +1,469 @@
+:root {
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --border: #d5d8de;
+  --text: #1b2636;
+  --muted: #6b7280;
+  --accent: #1b6ec2;
+  --danger: #b42318;
+  --readonly-bg: #f0f1f4;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+}
+
+#app {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  height: 100vh;
+}
+
+/* Sidebar */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 12px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.doc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.new-doc-wrap {
+  position: relative;
+}
+
+.doc-link {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.doc-link:hover {
+  background: var(--readonly-bg);
+}
+
+.doc-link.active {
+  background: #e7f0fa;
+}
+
+.doc-nr {
+  display: block;
+  font-weight: 600;
+}
+
+.doc-meta {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Marks the open-but-unsaved document apart from the saved ones above whose
+   subtitle is a real date. */
+.draft-meta {
+  font-style: italic;
+}
+
+.settings-link {
+  margin-top: auto;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.settings-link:hover,
+.settings-link.active {
+  background: var(--readonly-bg);
+}
+
+/* Main panel */
+
+.main {
+  padding: 20px 24px 40px;
+  overflow-y: auto;
+}
+
+.empty {
+  color: var(--muted);
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+h2 {
+  margin: 24px 0 8px;
+  font-size: 15px;
+}
+
+/* Forms */
+
+.header-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  /* Bottom-align the cells so a label that wraps onto a second line pushes
+     itself up rather than pushing its own control out of line with the
+     controls beside it. */
+  align-items: end;
+  gap: 12px 16px;
+  margin-bottom: 8px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field label {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+input,
+select {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+input[readonly] {
+  background: var(--readonly-bg);
+  color: var(--muted);
+}
+
+input.num {
+  text-align: right;
+}
+
+/* Tables */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--panel);
+}
+
+th,
+td {
+  border: 1px solid var(--border);
+  padding: 4px 6px;
+  text-align: left;
+}
+
+th {
+  background: var(--readonly-bg);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+td.num,
+th.num {
+  text-align: right;
+}
+
+td input {
+  width: 100%;
+  border: none;
+  padding: 2px 4px;
+  background: transparent;
+}
+
+td input:focus {
+  outline: 2px solid var(--accent);
+  border-radius: 2px;
+}
+
+tfoot td {
+  font-weight: 600;
+  background: var(--readonly-bg);
+}
+
+/* Buttons */
+
+.btn {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--btn-bg, var(--panel));
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Fundalul de hover vine dintr-o variabila, nu dintr-o regula proprie fiecarei
+   variante: `.btn:hover` are specificitate (0,2,0) si ar suprascrie fundalul
+   lui `.btn-primary` (0,1,0) fara sa-i schimbe si culoarea textului, lasand
+   text alb pe fundal aproape alb. Variantele isi aleg fundalul prin --btn-bg
+   si --btn-bg-hover, asa ca specificitatea nu mai intra in joc. */
+.btn:hover {
+  background: var(--btn-bg-hover, var(--readonly-bg));
+}
+
+.btn-primary {
+  --btn-bg: var(--accent);
+  --btn-bg-hover: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+.btn-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.btn-icon {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.table-actions {
+  margin-top: 6px;
+}
+
+/* The footer is two fixed rows, not a reflowing auto-fit grid: the computed
+   fields stay together on their own row, the signature fields on the next.
+   Bottom-aligning the cells keeps every control on one baseline even when a
+   label wraps onto a second line. */
+.footer-grid {
+  display: grid;
+  align-items: end;
+  gap: 12px 16px;
+}
+
+.footer-computed {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 20px;
+}
+
+.footer-semnaturi {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.inline-field {
+  display: flex;
+  gap: 6px;
+}
+
+/* The plus/minus — încarcă/descarcă word of a computed footer pair. */
+.inline-field .tip {
+  flex: 0 0 100px;
+}
+
+.inline-field input.num {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Toast */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  z-index: 10;
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: var(--text);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 25%);
+  /* Parked out of the way until shown, and untouchable so it can never
+     swallow a click meant for the form underneath. */
+  opacity: 0;
+  transform: translate(-50%, 12px);
+  pointer-events: none;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.toast-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    transition: none;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* Modal dialogs
+
+   Drawn by the page because window.confirm/alert never render in the app's
+   webview; see dialog.ts. */
+
+.modal {
+  max-width: 380px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 25%);
+}
+
+.modal::backdrop {
+  background: rgb(0 0 0 / 35%);
+}
+
+.modal-text {
+  margin: 0 0 18px;
+  font-size: 15px;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* The TVA rate is two or three characters wide; without a cap the auto table
+   layout hands it as much room as a price column and squeezes Denumire. */
+td.cota,
+th.cota {
+  width: 56px;
+}
+
+/* Marks a footer total that fails validation; Salvează refuses to save while
+   this class is applied, so the color is the only warning the user gets. */
+tfoot td.invalid {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* Panoul de totaluri: etichetele deasupra valorilor, ca sa se citeasca
+   pe verticala, nu ca un rand pierdut printre coloanele tabelului. */
+.totaluri {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  margin: 18px 0 24px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.totaluri .celula {
+  background: var(--panel);
+  padding: 10px 12px;
+}
+
+.totaluri .eticheta {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.totaluri .valoare {
+  display: block;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.totaluri .valoare.negativ {
+  color: var(--danger);
+}
+
+/* Caseta de cautare din coloana Denumirea. */
+.combo {
+  position: relative;
+}
+
+.combo-lista {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+}
+
+.combo-lista li {
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.combo-lista li:hover,
+.combo-lista li.evidentiat {
+  background: var(--accent);
+  color: #fff;
+}
+
+.combo-lista .produs-um {
+  float: right;
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+.combo-nou {
+  padding: 6px 10px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Coloanele read-only ale tabelului de produse. */
+td.derivat {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  padding-right: 10px;
+}
+
+td.derivat.negativ {
+  color: var(--danger);
+}
+
