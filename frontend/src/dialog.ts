@@ -12,7 +12,11 @@
  * with the returnValue of the button pressed. Closing with Esc leaves the
  * returnValue empty, which callers read as "no".
  */
-function openModal(message: string, buttons: HTMLButtonElement[]): Promise<string> {
+function openModal(
+  message: string,
+  buttons: HTMLButtonElement[],
+  continut?: HTMLElement,
+): Promise<string> {
   return new Promise((resolve) => {
     const dialog = document.createElement('dialog');
     dialog.className = 'modal';
@@ -28,6 +32,7 @@ function openModal(message: string, buttons: HTMLButtonElement[]): Promise<strin
     buttons.forEach((button) => row.appendChild(button));
 
     dialog.appendChild(text);
+    if (continut !== undefined) dialog.appendChild(continut);
     dialog.appendChild(row);
     document.body.appendChild(dialog);
 
@@ -72,4 +77,38 @@ export function showConfirm(message: string): Promise<boolean> {
 export function showAlert(message: string): Promise<void> {
   const ok = modalButton('OK', 'ok', 'btn btn-primary');
   return openModal(message, [ok]).then(() => undefined);
+}
+
+/** One choice in a picker: what it returns, and the two lines it shows. */
+export interface OptiunePicker {
+  valoare: string;
+  eticheta: string;
+  detaliu: string;
+}
+
+/**
+ * Asks the user to pick one of `optiuni`, and resolves with its `valoare`, or
+ * undefined if they backed out. Esc and "Renunță" both close with an empty
+ * returnValue, which is the same answer either way.
+ */
+export function showPicker(
+  message: string,
+  optiuni: OptiunePicker[],
+): Promise<string | undefined> {
+  const lista = document.createElement('div');
+  lista.className = 'modal-lista';
+  optiuni.forEach((o) => {
+    const button = modalButton('', o.valoare, 'btn modal-optiune');
+    const eticheta = document.createElement('span');
+    eticheta.className = 'modal-optiune-eticheta';
+    eticheta.textContent = o.eticheta;
+    const detaliu = document.createElement('span');
+    detaliu.className = 'modal-optiune-detaliu';
+    detaliu.textContent = o.detaliu;
+    button.append(eticheta, detaliu);
+    lista.appendChild(button);
+  });
+
+  const renunta = modalButton('Renunță', '', 'btn');
+  return openModal(message, [renunta], lista).then((v) => (v === '' ? undefined : v));
 }

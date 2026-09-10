@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Document, Product } from './api';
-import { UM_PERMISE, randDinProdus, randGol, validareDocument } from './nota';
+import type { Document, Product, Rand } from './api';
+import { UM_PERMISE, esteImportat, randDinProdus, randGol, validareDocument } from './nota';
 
 function docValid(): Document {
   return {
@@ -103,6 +103,30 @@ describe('validareDocument', () => {
     const d = docValid();
     d.randuri[0].um = 'litri';
     expect(validareDocument(d, '09/09/2026', '08/09/2026')).toMatch(/U\/M/i);
+  });
+});
+
+describe('esteImportat', () => {
+  // The cast is the one nota.ts already uses for a hand-built row: the
+  // generated Rand is a class, and `null` is not in its declared type.
+  const rand = (impusa?: number | null): Rand =>
+    ({
+      id: 0, productId: undefined, pozitie: 0, denumire: 'Carcasa', um: 'Kg.',
+      cantitate: 162.2, pretFaraTva: 12.3, cotaTva: 11, pretVanzare: 15.42,
+      valoareVanzareImpusa: impusa,
+    }) as unknown as Rand;
+
+  it('recunoaste un rand venit dintr-un proces verbal', () => {
+    expect(esteImportat(rand(2501.35))).toBe(true);
+  });
+
+  it('recunoaste zero impus ca tot rand importat', () => {
+    expect(esteImportat(rand(0))).toBe(true);
+  });
+
+  it('trateaza null si undefined ca rand obisnuit', () => {
+    expect(esteImportat(rand(null))).toBe(false);
+    expect(esteImportat(rand())).toBe(false);
   });
 });
 

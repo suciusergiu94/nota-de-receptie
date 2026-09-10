@@ -454,3 +454,37 @@ td.derivat.negativ {
   border-bottom: 1px solid var(--border);
 }
 
+/* Lista de alegere dintr-un modal (procesele verbale). */
+.modal-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 50vh;
+  overflow-y: auto;
+  margin: 12px 0;
+}
+
+.modal-optiune {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  width: 100%;
+}
+
+.modal-optiune-eticheta {
+  font-weight: 600;
+}
+
+.modal-optiune-detaliu {
+  font-size: 0.85em;
+  opacity: 0.75;
+}
+
+/* Randurile venite dintr-un proces verbal: blocate, si vizibil asa. */
+.tabel-produse tr.rand-importat input {
+  background: rgba(0, 0, 0, 0.04);
+  cursor: default;
+}
+

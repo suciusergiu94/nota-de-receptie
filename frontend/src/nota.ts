@@ -47,6 +47,19 @@ export function randDinProdus(p: Product): Rand {
 }
 
 /**
+ * Whether the row came from a proces verbal de transare.
+ *
+ * The imposed selling value is the only marker there is, and it is enough: a
+ * row has one exactly when it was imported. Zero is a real imposed value — a
+ * proces verbal yielding nothing but waste — so the check is against null and
+ * undefined, not against falsiness.
+ */
+export function esteImportat(r: Rand): boolean {
+  const impusa = (r as { valoareVanzareImpusa?: number | null }).valoareVanzareImpusa;
+  return impusa !== undefined && impusa !== null;
+}
+
+/**
  * The first thing wrong with the document, or undefined if nothing is.
  *
  * Both dates are checked as they were typed rather than as they are stored: a

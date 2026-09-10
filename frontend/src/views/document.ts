@@ -4,7 +4,9 @@ import {
   ExportPDF,
   GetDocument,
   GetSettings,
+  ImportProcesVerbal,
   ListFurnizori,
+  ListProceseVerbale,
   ListProducts,
   NewDocumentDraft,
   SaveDocument,
@@ -12,10 +14,10 @@ import {
 } from '../api';
 import type { Document, Product, Rand } from '../api';
 import { totaluri, valoriRand } from '../calc';
-import { showAlert, showConfirm } from '../dialog';
+import { showAlert, showConfirm, showPicker } from '../dialog';
 import { publicaStareaCiornei } from '../draft';
 import { cautaProduse } from '../fuzzy';
-import { UM_PERMISE, randDinProdus, randGol, validareDocument } from '../nota';
+import { UM_PERMISE, esteImportat, randDinProdus, randGol, validareDocument } from '../nota';
 import { formatDateRO, formatLei, formatNumber, formatProcent, parseDateRO, parseNumber } from '../format';
 import { navigate } from '../router';
 import { escapeHtml } from '../sidebar';
@@ -99,6 +101,7 @@ export async function renderDocumentView(
       ${tabelProduse()}
       <div class="table-actions">
         <button class="btn" id="add-rand">+ Adaugă rând</button>
+        <button class="btn" id="add-pv">+ Adaugă din proces verbal</button>
       </div>
 
       ${panouTotaluri()}
@@ -121,33 +124,35 @@ export async function renderDocumentView(
    */
   function tabelProduse(): string {
     const randuri = doc.randuri
-      .map(
-        (r, i) => `
-        <tr data-rand="${i}">
+      .map((r, i) => {
+        const blocat = esteImportat(r);
+        const ro = blocat ? ' readonly' : '';
+        return `
+        <tr data-rand="${i}" class="${blocat ? 'rand-importat' : ''}">
           <td class="nr-crt">${i + 1}</td>
           <td class="combo">
             <input class="denumire" data-camp="denumire" value="${escapeHtml(r.denumire)}"
-                   autocomplete="off" />
+                   autocomplete="off"${ro} />
           </td>
           <td>
-            <select data-camp="um">
+            <select data-camp="um"${blocat ? ' disabled' : ''}>
               ${UM_PERMISE.map(
                 (um) => `<option value="${um}" ${r.um === um ? 'selected' : ''}>${um}</option>`,
               ).join('')}
             </select>
           </td>
-          <td><input class="num" data-camp="cantitate" value="${formatNumber(r.cantitate)}" /></td>
-          <td><input class="num" data-camp="pretFaraTva" value="${formatNumber(r.pretFaraTva)}" /></td>
-          <td><input class="num cota" data-camp="cotaTva" value="${formatNumber(r.cotaTva)}" /></td>
+          <td><input class="num" data-camp="cantitate" value="${formatNumber(r.cantitate)}"${ro} /></td>
+          <td><input class="num" data-camp="pretFaraTva" value="${formatNumber(r.pretFaraTva)}"${ro} /></td>
+          <td><input class="num cota" data-camp="cotaTva" value="${formatNumber(r.cotaTva)}"${ro} /></td>
           <td class="derivat" data-derivat="valoareFaraTva"></td>
           <td class="derivat" data-derivat="valoareCuTva"></td>
-          <td><input class="num" data-camp="pretVanzare" value="${formatNumber(r.pretVanzare)}" /></td>
+          <td><input class="num" data-camp="pretVanzare" value="${formatNumber(r.pretVanzare)}"${ro} /></td>
           <td class="derivat" data-derivat="valoareVanzare"></td>
           <td class="derivat" data-derivat="adaos"></td>
           <td class="derivat" data-derivat="adaosProcent"></td>
           <td><button class="btn-icon sterge-rand" title="Șterge rândul">×</button></td>
-        </tr>`,
-      )
+        </tr>`;
+      })
       .join('');
 
     return `
@@ -284,28 +289,73 @@ export async function renderDocumentView(
       });
 
       const denumire = rand.querySelector<HTMLInputElement>('input.denumire')!;
-      denumire.addEventListener('input', () => deschideCombo(index, denumire));
-      denumire.addEventListener('focus', () => deschideCombo(index, denumire));
-      denumire.addEventListener('keydown', (e) => navigheazaCombo(e, index, denumire));
-      // Blur closes on the next tick so a click on a suggestion lands before
-      // the list is removed; a click removes it itself, so nothing flickers.
-      // The close is conditional on comboRand still being this row: focus can
-      // move straight from this field into another row's, whose own focus
-      // handler has already opened its list by the time this timer fires —
-      // an unconditional close would tear that fresh list down instead.
-      denumire.addEventListener('blur', () =>
-        window.setTimeout(() => {
-          if (comboRand === index) inchideCombo();
-        }, 150),
-      );
+      if (!esteImportat(doc.randuri[index])) {
+        denumire.addEventListener('input', () => deschideCombo(index, denumire));
+        denumire.addEventListener('focus', () => deschideCombo(index, denumire));
+        denumire.addEventListener('keydown', (e) => navigheazaCombo(e, index, denumire));
+        // Blur closes on the next tick so a click on a suggestion lands before
+        // the list is removed; a click removes it itself, so nothing flickers.
+        // The close is conditional on comboRand still being this row: focus can
+        // move straight from this field into another row's, whose own focus
+        // handler has already opened its list by the time this timer fires —
+        // an unconditional close would tear that fresh list down instead.
+        denumire.addEventListener('blur', () =>
+          window.setTimeout(() => {
+            if (comboRand === index) inchideCombo();
+          }, 150),
+        );
+      }
     });
 
     outlet.querySelector<HTMLButtonElement>('#add-rand')!.addEventListener('click', () => {
-      doc.randuri.push(randGol(cotaImplicita));
+      // Imported rows stay at the end, so a row typed in now belongs above
+      // them: the form shows what will be printed, with nothing jumping on
+      // save.
+      const primulImportat = doc.randuri.findIndex((r) => esteImportat(r));
+      const pozitie = primulImportat === -1 ? doc.randuri.length : primulImportat;
+      doc.randuri.splice(pozitie, 0, randGol(cotaImplicita));
       render();
-      // The new row's name field is where typing continues.
       const inputuri = outlet.querySelectorAll<HTMLInputElement>('input.denumire');
-      inputuri[inputuri.length - 1]?.focus();
+      inputuri[pozitie]?.focus();
+    });
+
+    outlet.querySelector<HTMLButtonElement>('#add-pv')!.addEventListener('click', async () => {
+      let lista;
+      try {
+        lista = await ListProceseVerbale();
+      } catch (err) {
+        showError('Nu am putut citi procesele verbale', err);
+        return;
+      }
+      if (!lista.disponibil) {
+        await showAlert(
+          'Nu am găsit aplicația „Proces verbal de transare” pe acest calculator. ' +
+            'Instaleaz-o și deschide-o o dată, apoi încearcă din nou.',
+        );
+        return;
+      }
+      if (lista.procese.length === 0) {
+        await showAlert('Aplicația „Proces verbal de transare” nu are încă niciun proces verbal salvat.');
+        return;
+      }
+
+      const ales = await showPicker(
+        'Alege procesul verbal de adăugat pe notă:',
+        lista.procese.map((p) => ({
+          valoare: String(p.id),
+          eticheta: `Nr. ${p.nr} din ${formatDateRO(p.data)}`,
+          detaliu: `${p.gestiune} — ${formatLei(p.total)}`,
+        })),
+      );
+      if (ales === undefined) return;
+
+      try {
+        const randuri = await ImportProcesVerbal(Number(ales));
+        doc.randuri.push(...randuri);
+        render();
+      } catch (err) {
+        showError('Nu am putut adăuga procesul verbal', err);
+      }
     });
 
     outlet.querySelector<HTMLButtonElement>('#save')!.addEventListener('click', salveaza);
