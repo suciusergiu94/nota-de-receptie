@@ -10,7 +10,7 @@ import {
 import type { Product, Settings } from '../api';
 import { showAlert, showConfirm } from '../dialog';
 import { UM_PERMISE } from '../nota';
-import { formatNumber, parseNumber } from '../format';
+import { formatInput, formatNumber, parseNumber } from '../format';
 import { escapeHtml } from '../sidebar';
 import { showToast } from '../toast';
 
@@ -91,7 +91,10 @@ export async function renderSetariView(
               ).join('')}
             </select>
           </td>
-          <td><input class="num" data-camp="pretVanzare" value="${formatNumber(p.pretVanzare)}" /></td>
+          <!-- The price is the user's to fill in, so a new product starts with
+               an empty cell rather than a "0,00" nobody typed. The cota beside
+               it arrives from Setări, and is written out even at zero. -->
+          <td><input class="num" data-camp="pretVanzare" value="${formatInput(p.pretVanzare)}" /></td>
           <td><input class="num cota" data-camp="cotaTva" value="${formatNumber(p.cotaTva)}" /></td>
           <td>
             <button class="btn-icon muta-sus" title="Mută mai sus" ${i === 0 ? 'disabled' : ''}>↑</button>

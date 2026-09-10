@@ -55,6 +55,25 @@ export function formatNumber(value: number, decimals = 2): string {
   return zecimale === undefined ? `${semn}${grupat}` : `${semn}${grupat},${zecimale}`;
 }
 
+/**
+ * Renders a number for a cell the user is the one to fill in: blank when there
+ * is nothing filled in yet.
+ *
+ * A fresh row starts every figure at zero, and formatNumber would put "0,00"
+ * into each of its cells — a figure nobody typed, which has to be selected and
+ * deleted before the real one can go in. parseNumber reads a blank cell back
+ * as zero, so the note carries the same figure either way; only the screen
+ * changes.
+ *
+ * Cells that come filled in from data keep formatNumber, zero included: the
+ * T.V.A. rate from Setări, the selling price of a product picked from the
+ * catalogue, every figure on a row imported from a proces verbal. There a
+ * zero is an answer the app is giving, not an empty field.
+ */
+export function formatInput(value: number): string {
+  return value === 0 ? '' : formatNumber(value);
+}
+
 /** Renders an ISO date (YYYY-MM-DD) the way the paper form writes it. */
 export function formatDateRO(iso: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);

@@ -18,7 +18,15 @@ import { showAlert, showConfirm, showPicker } from '../dialog';
 import { publicaStareaCiornei } from '../draft';
 import { cautaProduse } from '../fuzzy';
 import { UM_PERMISE, esteImportat, randDinProdus, randGol, validareDocument } from '../nota';
-import { formatDateRO, formatLei, formatNumber, formatProcent, parseDateRO, parseNumber } from '../format';
+import {
+  formatDateRO,
+  formatInput,
+  formatLei,
+  formatNumber,
+  formatProcent,
+  parseDateRO,
+  parseNumber,
+} from '../format';
 import { navigate } from '../router';
 import { escapeHtml } from '../sidebar';
 import { showToast } from '../toast';
@@ -127,6 +135,11 @@ export async function renderDocumentView(
       .map((r, i) => {
         const blocat = esteImportat(r);
         const ro = blocat ? ' readonly' : '';
+        // An imported row is read-only and every figure on it came from the
+        // proces verbal, so its cells show what the document says, zero
+        // included. Elsewhere these are cells the user is the one to fill in,
+        // and a "0,00" waiting in them is a figure nobody typed.
+        const cifra = blocat ? formatNumber : formatInput;
         return `
         <tr data-rand="${i}" class="${blocat ? 'rand-importat' : ''}">
           <td class="nr-crt">${i + 1}</td>
@@ -141,12 +154,14 @@ export async function renderDocumentView(
               ).join('')}
             </select>
           </td>
-          <td><input class="num" data-camp="cantitate" value="${formatNumber(r.cantitate)}"${ro} /></td>
-          <td><input class="num" data-camp="pretFaraTva" value="${formatNumber(r.pretFaraTva)}"${ro} /></td>
+          <td><input class="num" data-camp="cantitate" value="${cifra(r.cantitate)}"${ro} /></td>
+          <td><input class="num" data-camp="pretFaraTva" value="${cifra(r.pretFaraTva)}"${ro} /></td>
+          <!-- Cota comes filled in from Setări, or from the product picked
+               on this row, so it is written out even at zero. -->
           <td><input class="num cota" data-camp="cotaTva" value="${formatNumber(r.cotaTva)}"${ro} /></td>
           <td class="derivat" data-derivat="valoareFaraTva"></td>
           <td class="derivat" data-derivat="valoareCuTva"></td>
-          <td><input class="num" data-camp="pretVanzare" value="${formatNumber(r.pretVanzare)}"${ro} /></td>
+          <td><input class="num" data-camp="pretVanzare" value="${cifra(r.pretVanzare)}"${ro} /></td>
           <td class="derivat" data-derivat="valoareVanzare"></td>
           <td class="derivat" data-derivat="adaos"></td>
           <td class="derivat" data-derivat="adaosProcent"></td>

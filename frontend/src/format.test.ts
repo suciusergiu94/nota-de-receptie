@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateRO, formatLei, formatNumber, formatProcent, parseDateRO, parseNumber } from './format';
+import {
+  formatDateRO,
+  formatInput,
+  formatLei,
+  formatNumber,
+  formatProcent,
+  parseDateRO,
+  parseNumber,
+} from './format';
 
 describe('parseNumber', () => {
   it('accepts a dot decimal separator', () => {
@@ -49,6 +57,25 @@ describe('formatNumber', () => {
   it('honours an explicit decimal count', () => {
     expect(formatNumber(21.9, 3)).toBe('21,900');
     expect(formatNumber(1234.5, 0)).toBe('1.235');
+  });
+});
+
+describe('formatInput', () => {
+  it('lasa goala celula in care nu s-a completat nimic', () => {
+    // Un rand nou porneste de la zero peste tot; "0,00" in fiecare celula e o
+    // cifra pe care n-a scris-o nimeni si care trebuie stearsa inainte de a
+    // scrie cifra adevarata.
+    expect(formatInput(0)).toBe('');
+  });
+
+  it('scrie ca formatNumber orice cifra completata', () => {
+    expect(formatInput(328.5)).toBe('328,50');
+    expect(formatInput(1234.5)).toBe('1.234,50');
+    expect(formatInput(-11)).toBe('-11,00');
+  });
+
+  it('se citeste inapoi ca zero, deci nota poarta aceeasi cifra ca inainte', () => {
+    expect(parseNumber(formatInput(0))).toBe(0);
   });
 });
 
