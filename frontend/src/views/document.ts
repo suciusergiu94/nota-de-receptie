@@ -16,7 +16,7 @@ import type { Document, Product, Rand } from '../api';
 import { totaluri, valoriRand } from '../calc';
 import { showAlert, showConfirm, showPicker } from '../dialog';
 import { publicaStareaCiornei } from '../draft';
-import { cautaProduse } from '../fuzzy';
+import { cautaDupaNumar, cautaProduse } from '../fuzzy';
 import { UM_PERMISE, esteImportat, randDinProdus, randGol, validareDocument } from '../nota';
 import {
   formatDateRO,
@@ -354,14 +354,23 @@ export async function renderDocumentView(
         return;
       }
 
-      const ales = await showPicker(
-        'Alege procesul verbal de adăugat pe notă:',
-        lista.procese.map((p) => ({
-          valoare: String(p.id),
-          eticheta: `Nr. ${p.nr} din ${formatDateRO(p.data)}`,
-          detaliu: `${p.gestiune} — ${formatLei(p.total)}`,
-        })),
-      );
+      // The list arrives newest first, and only the newest few are shown: with
+      // a few hundred documents behind the button, scrolling to last week's is
+      // slower than typing its number.
+      const procese = lista.procese;
+      const ales = await showPicker('Alege procesul verbal de adăugat pe notă:', {
+        placeholder:
+          procese.length > 5
+            ? `Caută după număr (${procese.length} în total)`
+            : 'Caută după număr',
+        faraRezultate: 'Niciun proces verbal cu acest număr.',
+        cauta: (text) =>
+          cautaDupaNumar(procese, text).map((p) => ({
+            valoare: String(p.id),
+            eticheta: `Nr. ${p.nr} din ${formatDateRO(p.data)}`,
+            detaliu: `${p.gestiune} — ${formatLei(p.total)}`,
+          })),
+      });
       if (ales === undefined) return;
 
       try {

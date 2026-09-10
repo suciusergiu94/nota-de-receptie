@@ -455,6 +455,20 @@ td.derivat.negativ {
 }
 
 /* Lista de alegere dintr-un modal (procesele verbale). */
+.modal-picker {
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-cautare {
+  width: 100%;
+}
+
+.modal-fara-rezultate {
+  margin: 6px 2px;
+  color: var(--muted);
+}
+
 .modal-lista {
   display: flex;
   flex-direction: column;

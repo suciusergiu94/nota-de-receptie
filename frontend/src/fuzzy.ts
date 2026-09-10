@@ -77,3 +77,28 @@ export function cautaProduse<T extends { denumire: string }>(
     .slice(0, limita)
     .map((p) => p.produs);
 }
+
+/**
+ * The proces verbal documents whose number contains the digits typed, largest
+ * number first.
+ *
+ * Numbers are matched as a substring rather than as the subsequence
+ * `scorFuzzy` uses for names: "5" has to bring up 5, 15 and 25, but "15" has
+ * no business bringing up 51 — with a couple of hundred documents a scattered
+ * digit match returns most of the list, which is no answer at all.
+ *
+ * `limita` caps only the empty search, where the list opens on the newest few
+ * in the order it arrived. A search shows every match: someone who typed a
+ * number is looking for one document, and a hidden match reads as "it isn't
+ * there".
+ */
+export function cautaDupaNumar<T extends { nr: number }>(
+  procese: T[],
+  cautare: string,
+  limita = 5,
+): T[] {
+  const cifre = cautare.replace(/\D/g, '');
+  if (cifre === '') return procese.slice(0, limita);
+
+  return procese.filter((p) => String(p.nr).includes(cifre)).sort((a, b) => b.nr - a.nr);
+}

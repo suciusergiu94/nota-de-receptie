@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cautaProduse, normalizeaza, scorFuzzy } from './fuzzy';
+import { cautaDupaNumar, cautaProduse, normalizeaza, scorFuzzy } from './fuzzy';
 
 const produse = [
   { denumire: 'Pulpă fără os' },
@@ -61,5 +61,46 @@ describe('cautaProduse', () => {
 
   it('respecta limita', () => {
     expect(cautaProduse(produse, 'o', 2)).toHaveLength(2);
+  });
+});
+
+describe('cautaDupaNumar', () => {
+  // Numerele nu vin in ordine crescatoare cu data: lista soseste cu cel mai
+  // recent proces verbal primul, oricare i-ar fi numarul.
+  const procese = [
+    { nr: 25 },
+    { nr: 15 },
+    { nr: 7 },
+    { nr: 5 },
+    { nr: 51 },
+    { nr: 3 },
+    { nr: 2 },
+  ];
+
+  it('intoarce primele cateva in ordinea listei cand cautarea e goala', () => {
+    expect(cautaDupaNumar(procese, '').map((p) => p.nr)).toEqual([25, 15, 7, 5, 51]);
+  });
+
+  it('gaseste orice numar care contine cifrele tastate', () => {
+    expect(cautaDupaNumar(procese, '5').map((p) => p.nr)).toEqual([51, 25, 15, 5]);
+  });
+
+  it('cere cifrele una langa alta, nu imprastiate prin numar', () => {
+    // 51 contine "5" si "1", dar nu "15": altfel o cautare de doua cifre ar
+    // scoate jumatate din lista.
+    expect(cautaDupaNumar(procese, '15').map((p) => p.nr)).toEqual([15]);
+  });
+
+  it('nu taie potrivirile la limita: cine cauta vrea sa vada tot', () => {
+    expect(cautaDupaNumar(procese, '', 2)).toHaveLength(2);
+    expect(cautaDupaNumar(procese, '5')).toHaveLength(4);
+  });
+
+  it('ignora ce nu e cifra, ca sa mearga si „nr. 15”', () => {
+    expect(cautaDupaNumar(procese, 'nr. 15').map((p) => p.nr)).toEqual([15]);
+  });
+
+  it('nu intoarce nimic pentru un numar care nu exista', () => {
+    expect(cautaDupaNumar(procese, '999')).toEqual([]);
   });
 });
