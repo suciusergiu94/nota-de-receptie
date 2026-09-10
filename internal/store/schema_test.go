@@ -184,3 +184,47 @@ func TestValoareaImpusaFaceDusIntorsPrinBaza(t *testing.T) {
 		t.Errorf("randuri cu valoare impusa = %d, vrem 1", cuValoare)
 	}
 }
+
+// TestValoareaImpusaZeroNuSeConfundaCuNimic verifies the reason the column is
+// nullable at all: an imposed value of exactly 0 is a real, distinct
+// statement ("someone imposed a sale value of zero") and must not collapse
+// to nil ("nothing imposed") on the way through the database, nor be
+// confused with a sibling row that genuinely has nothing imposed.
+func TestValoareaImpusaZeroNuSeConfundaCuNimic(t *testing.T) {
+	s := deschide(t)
+	zero := 0.0
+	doc := docExemplu(nil)
+	doc.Randuri = append(doc.Randuri, model.Rand{
+		Pozitie: 2, Denumire: "Carcasa", UM: "Kg.", Cantitate: 162.2,
+		PretFaraTVA: 12.30, CotaTVA: 11, PretVanzare: 15.42,
+		ValoareVanzareImpusa: &zero,
+	})
+
+	salvat, err := s.SaveDocument(doc)
+	if err != nil {
+		t.Fatalf("SaveDocument: %v", err)
+	}
+	citit, err := s.GetDocument(salvat.ID)
+	if err != nil {
+		t.Fatalf("GetDocument: %v", err)
+	}
+	if len(citit.Randuri) != 3 {
+		t.Fatalf("randuri = %d, vrem 3", len(citit.Randuri))
+	}
+
+	// The two rows from docExemplu carry no imposed value at all.
+	for i, r := range citit.Randuri[:2] {
+		if r.ValoareVanzareImpusa != nil {
+			t.Errorf("randul %d: ValoareVanzareImpusa = %v, vrem nil", i, *r.ValoareVanzareImpusa)
+		}
+	}
+
+	// The third row imposes exactly 0, which must survive as a non-nil zero.
+	impusaCitita := citit.Randuri[2].ValoareVanzareImpusa
+	if impusaCitita == nil {
+		t.Fatal("ValoareVanzareImpusa = nil, vrem un pointer catre 0")
+	}
+	if *impusaCitita != 0 {
+		t.Errorf("ValoareVanzareImpusa = %v, vrem 0", *impusaCitita)
+	}
+}
