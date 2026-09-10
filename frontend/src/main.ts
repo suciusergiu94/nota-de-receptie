@@ -2,7 +2,9 @@ import './style.css';
 import { renderSidebar } from './sidebar';
 import { startRouter } from './router';
 import { renderDocumentView } from './views/document';
-import { renderSetariView } from './views/setari';
+// Task 15 creates views/setari.ts and restores this import along with the
+// '#/setari' route below.
+// import { renderSetariView } from './views/setari';
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <aside class="sidebar" id="sidebar"></aside>
@@ -29,10 +31,11 @@ startRouter(
       pattern: /^#\/document\/(\d+)$/,
       render: (el, id) => renderDocumentView(el, id, refreshSidebar),
     },
-    {
-      pattern: /^#\/setari$/,
-      render: (el) => renderSetariView(el, refreshSidebar),
-    },
+    // Task 15 restores this route alongside the import above.
+    // {
+    //   pattern: /^#\/setari$/,
+    //   render: (el) => renderSetariView(el, refreshSidebar),
+    // },
   ],
   outlet,
 );
