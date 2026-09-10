@@ -28,18 +28,38 @@ func NewApp() *App {
 }
 
 // startup opens the database and keeps the Wails context for runtime calls.
+//
+// A failure here (a corrupt file, an unwritable directory, a full disk) is
+// entirely plausible on a shipped desktop app. The user gets a Romanian
+// dialog explaining what happened instead of a Go panic trace, and the app
+// then quits cleanly rather than continuing with a.store left nil.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
 	path, err := appdir.DBPath()
 	if err != nil {
-		panic("nu s-a putut determina locatia bazei de date: " + err.Error())
+		a.fatalStartupError(fmt.Sprintf(
+			"Nu s-a putut determina locația bazei de date.\n\nEroare: %v", err))
+		return
 	}
 	s, err := store.Open(path)
 	if err != nil {
-		panic("nu s-a putut deschide baza de date: " + err.Error())
+		a.fatalStartupError(fmt.Sprintf(
+			"Nu s-a putut deschide baza de date de la:\n%s\n\nEroare: %v", path, err))
+		return
 	}
 	a.store = s
+}
+
+// fatalStartupError shows a native error dialog and quits. Used only from
+// startup, before any bound method can be called from the frontend.
+func (a *App) fatalStartupError(message string) {
+	runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
+		Type:    runtime.ErrorDialog,
+		Title:   "Eroare la pornire",
+		Message: message,
+	})
+	runtime.Quit(a.ctx)
 }
 
 // shutdown closes the database.
