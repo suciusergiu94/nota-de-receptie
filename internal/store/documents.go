@@ -87,6 +87,27 @@ func (s *Store) randuri(documentID int64) ([]model.Rand, error) {
 	return out, rows.Err()
 }
 
+// asazaImportateleLaFinal returns the rows with every row imported from a
+// proces verbal moved to the end, each group keeping the order it came in.
+//
+// The rule is imposed here rather than in the form because this is where
+// position becomes durable: whatever the frontend sends, what gets written —
+// and what the PDF later prints — has the imported rows last.
+func asazaImportateleLaFinal(randuri []model.Rand) []model.Rand {
+	out := make([]model.Rand, 0, len(randuri))
+	for _, r := range randuri {
+		if r.ValoareVanzareImpusa == nil {
+			out = append(out, r)
+		}
+	}
+	for _, r := range randuri {
+		if r.ValoareVanzareImpusa != nil {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
 // SaveDocument creates or updates a document and returns it as stored.
 //
 // Everything happens in one transaction: the document, its rows, the supplier
@@ -143,6 +164,7 @@ func (s *Store) SaveDocument(doc model.Document) (model.Document, error) {
 	// of their own beyond their position, the form lets any of them be deleted
 	// or reordered, and a document never holds enough of them for the rewrite
 	// to cost anything.
+	doc.Randuri = asazaImportateleLaFinal(doc.Randuri)
 	if _, err := tx.Exec(`DELETE FROM document_rows WHERE document_id = ?`, doc.ID); err != nil {
 		return model.Document{}, fmt.Errorf("salvare randuri: %w", err)
 	}

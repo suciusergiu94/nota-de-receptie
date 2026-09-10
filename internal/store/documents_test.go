@@ -232,3 +232,76 @@ func TestDeleteDocumentSterageSiRandurile(t *testing.T) {
 		t.Errorf("au ramas %d randuri orfane", randuri)
 	}
 }
+
+func TestRandurileImportateAjungLaFinal(t *testing.T) {
+	// Un proces verbal adaugat, apoi inca un produs tastat manual: pe hartie
+	// randul importat trebuie sa ramana ultimul, indiferent in ce ordine le-a
+	// pus formularul.
+	s := deschide(t)
+	impusa := 2501.35
+	doc := model.Document{
+		Nr: 1, Data: "2026-09-09", Unitate: "S.C. Largiana Carn S.R.L.",
+		Randuri: []model.Rand{
+			{Denumire: "Pulpa fara os", UM: "Kg.", Cantitate: 10, PretFaraTVA: 20,
+				CotaTVA: 11, PretVanzare: 30},
+			{Denumire: "Carcasa", UM: "Kg.", Cantitate: 162.2, PretFaraTVA: 12.30,
+				CotaTVA: 11, PretVanzare: 15.42, ValoareVanzareImpusa: &impusa},
+			{Denumire: "Oua", UM: "Buc.", Cantitate: 30, PretFaraTVA: 0.9,
+				CotaTVA: 11, PretVanzare: 1.5},
+		},
+	}
+
+	salvat, err := s.SaveDocument(doc)
+	if err != nil {
+		t.Fatalf("SaveDocument: %v", err)
+	}
+
+	vrem := []string{"Pulpa fara os", "Oua", "Carcasa"}
+	for i, denumire := range vrem {
+		if salvat.Randuri[i].Denumire != denumire {
+			t.Errorf("documentul intors, randul %d = %q, vrem %q",
+				i, salvat.Randuri[i].Denumire, denumire)
+		}
+		if salvat.Randuri[i].Pozitie != i {
+			t.Errorf("randul %d are pozitia %d", i, salvat.Randuri[i].Pozitie)
+		}
+	}
+
+	citit, err := s.GetDocument(salvat.ID)
+	if err != nil {
+		t.Fatalf("GetDocument: %v", err)
+	}
+	for i, denumire := range vrem {
+		if citit.Randuri[i].Denumire != denumire {
+			t.Errorf("citit din baza, randul %d = %q, vrem %q",
+				i, citit.Randuri[i].Denumire, denumire)
+		}
+	}
+}
+
+func TestOrdineaDintreRandurileImportateSePastreaza(t *testing.T) {
+	s := deschide(t)
+	unu, doi := 100.0, 200.0
+	doc := model.Document{
+		Nr: 1, Data: "2026-09-09", Unitate: "S.C. Largiana Carn S.R.L.",
+		Randuri: []model.Rand{
+			{Denumire: "Carcasa porc", UM: "Kg.", Cantitate: 1, PretFaraTVA: 1,
+				CotaTVA: 11, PretVanzare: 1, ValoareVanzareImpusa: &unu},
+			{Denumire: "Oua", UM: "Buc.", Cantitate: 30, PretFaraTVA: 0.9,
+				CotaTVA: 11, PretVanzare: 1.5},
+			{Denumire: "Pulpa vita", UM: "Kg.", Cantitate: 1, PretFaraTVA: 1,
+				CotaTVA: 11, PretVanzare: 1, ValoareVanzareImpusa: &doi},
+		},
+	}
+
+	salvat, err := s.SaveDocument(doc)
+	if err != nil {
+		t.Fatalf("SaveDocument: %v", err)
+	}
+	vrem := []string{"Oua", "Carcasa porc", "Pulpa vita"}
+	for i, denumire := range vrem {
+		if salvat.Randuri[i].Denumire != denumire {
+			t.Errorf("randul %d = %q, vrem %q", i, salvat.Randuri[i].Denumire, denumire)
+		}
+	}
+}
