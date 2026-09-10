@@ -49,18 +49,26 @@ export function randDinProdus(p: Product): Rand {
 /**
  * The first thing wrong with the document, or undefined if nothing is.
  *
- * The date is checked as it was typed rather than as it is stored: a
- * half-typed "09/09/20" never becomes an ISO date, so checking doc.data would
- * silently pass the last valid value while the field on screen says otherwise.
+ * Both dates are checked as they were typed rather than as they are stored: a
+ * half-typed "09/09/20" never becomes an ISO date, so the form only writes a
+ * date onto the document once it parses. Checking the stored value would
+ * therefore pass the last valid date while the field on screen reads
+ * something else entirely, and the PDF would print a date nobody chose.
  */
-export function validareDocument(doc: Document, dataTastata: string): string | undefined {
+export function validareDocument(
+  doc: Document,
+  dataTastata: string,
+  dataLivrareTastata: string,
+): string | undefined {
   if (!Number.isInteger(doc.nr) || doc.nr < 1) {
     return 'Numărul notei trebuie să fie un număr întreg, cel puțin 1.';
   }
   if (parseDateRO(dataTastata) === undefined) {
     return 'Data notei nu este o dată validă. Se scrie ZZ/LL/AAAA.';
   }
-  if (doc.documentLivrareData !== '' && parseDateRO(formatCaLaTastare(doc.documentLivrareData)) === undefined) {
+  // The delivery date is optional — not every reception has a document to
+  // reference — but anything typed into it has to be a real date.
+  if (dataLivrareTastata.trim() !== '' && parseDateRO(dataLivrareTastata) === undefined) {
     return 'Data documentului de livrare nu este o dată validă. Se scrie ZZ/LL/AAAA.';
   }
   if (doc.randuri.length === 0) {
@@ -71,14 +79,8 @@ export function validareDocument(doc: Document, dataTastata: string): string | u
       return `Rândul ${i + 1} nu are denumire.`;
     }
     if (!(UM_PERMISE as readonly string[]).includes(r.um)) {
-      return `Rândul ${i + 1}: U/M trebuie să fie „Buc." sau „Kg.".`;
+      return `Rândul ${i + 1}: U/M trebuie să fie „Buc.” sau „Kg.”.`;
     }
   }
   return undefined;
-}
-
-/** Turns a stored ISO date back into the ZZ/LL/AAAA that parseDateRO reads. */
-function formatCaLaTastare(iso: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  return match === null ? iso : `${match[3]}/${match[2]}/${match[1]}`;
 }

@@ -13,6 +13,7 @@ import {
 import type { Document, Product, Rand } from '../api';
 import { totaluri, valoriRand } from '../calc';
 import { showAlert, showConfirm } from '../dialog';
+import { publicaStareaCiornei } from '../draft';
 import { cautaProduse } from '../fuzzy';
 import { UM_PERMISE, randDinProdus, randGol, validareDocument } from '../nota';
 import { formatDateRO, formatLei, formatNumber, formatProcent, parseDateRO, parseNumber } from '../format';
@@ -38,8 +39,15 @@ export async function renderDocumentView(
   } catch (err) {
     showError('Nu s-a putut încărca nota', err);
     outlet.innerHTML = '<p class="empty">Nota nu a putut fi încărcată.</p>';
+    // There is no form on screen to lose any more, and the answer left behind
+    // by the view this one replaced would have the sidebar ask about it.
+    publicaStareaCiornei(() => false);
     return;
   }
+
+  // The sidebar's "+ Notă nouă" asks here before rebuilding this form, since
+  // only this closure can see whether anything has been typed into it.
+  publicaStareaCiornei(() => doc.id === 0 && doc.randuri.length > 0);
 
   render();
 
@@ -162,7 +170,7 @@ export async function renderDocumentView(
           </tr>
         </thead>
         <tbody>
-          ${randuri || '<tr><td colspan="13" class="empty">Nicio linie. Apasă „+ Adaugă rând".</td></tr>'}
+          ${randuri || '<tr><td colspan="13" class="empty">Nicio linie. Apasă „+ Adaugă rând”.</td></tr>'}
         </tbody>
       </table>`;
   }
@@ -329,8 +337,14 @@ export async function renderDocumentView(
       case 'um':
         r.um = valoare;
         break;
-      default:
-        r[camp] = parseNumber(valoare);
+      default: {
+        // A cell that cannot be read keeps the row's last readable figure.
+        // Writing zero instead would file a figure the user never typed, and
+        // salveaza refuses the document while the cell still reads like that,
+        // so the stale value cannot be saved behind their back either.
+        const numar = parseNumber(valoare);
+        if (numar !== undefined) r[camp] = numar;
+      }
     }
   }
 
@@ -372,7 +386,7 @@ export async function renderDocumentView(
         )
         .join('') +
       (poateFiSalvat
-        ? `<li class="combo-nou" data-nou="1">„${escapeHtml(input.value.trim())}" nu este în produse —
+        ? `<li class="combo-nou" data-nou="1">„${escapeHtml(input.value.trim())}” nu este în produse —
              <strong>salvează-l</strong></li>`
         : '');
 
@@ -465,15 +479,50 @@ export async function renderDocumentView(
       doc.randuri[index] = { ...r, productId: produs.id, denumire: produs.denumire } as Rand;
       inchideCombo();
       render();
-      showToast(`„${produs.denumire}" a fost adăugat în produse.`);
+      showToast(`„${produs.denumire}” a fost adăugat în produse.`);
     } catch (err) {
       showError('Nu s-a putut salva produsul', err);
     }
   }
 
+  // The column each numeric cell belongs to, for a message that says where to
+  // look. Keyed by the data-camp the cell carries.
+  const numeCampuri: Record<string, string> = {
+    cantitate: 'Cantitatea',
+    pretFaraTva: 'Prețul fără T.V.A.',
+    cotaTva: 'Cota T.V.A.',
+    pretVanzare: 'Prețul de vânzare',
+  };
+
+  /**
+   * The first numeric cell whose text is not a figure, described in Romanian.
+   *
+   * Such a cell leaves its last readable value on the row (see aplicaCamp),
+   * so without this the note would be filed with a number the screen no longer
+   * shows — the same silence the delivery date used to have.
+   */
+  function primaCelulaNumericaDeNecitit(): string | undefined {
+    for (const camp of outlet.querySelectorAll<HTMLInputElement>('input.num[data-camp]')) {
+      if (parseNumber(camp.value) !== undefined) continue;
+      const rand = Number((camp.closest('tr') as HTMLElement).dataset.rand) + 1;
+      return `Rândul ${rand}: „${numeCampuri[camp.dataset.camp!]}” nu este un număr.`;
+    }
+    return undefined;
+  }
+
   async function salveaza(): Promise<void> {
+    const celula = primaCelulaNumericaDeNecitit();
+    if (celula !== undefined) {
+      await showAlert(celula);
+      return;
+    }
+    // Both dates go to the validation as they are on screen, not as they are
+    // on the document: the form only writes a date onto the document once it
+    // parses, so a half-typed one leaves the previous value in place and the
+    // check would pass a date the user can no longer see.
     const dataTastata = outlet.querySelector<HTMLInputElement>('#f-data')!.value;
-    const problema = validareDocument(doc, dataTastata);
+    const dataLivrareTastata = outlet.querySelector<HTMLInputElement>('#f-livrare-data')!.value;
+    const problema = validareDocument(doc, dataTastata, dataLivrareTastata);
     if (problema !== undefined) {
       await showAlert(problema);
       return;

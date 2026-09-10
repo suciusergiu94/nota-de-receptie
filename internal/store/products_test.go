@@ -195,3 +195,49 @@ func TestSaveProductsRefuzaDuplicatele(t *testing.T) {
 		t.Errorf("catalogul = %+v dupa un refuz, vrem gol", produse)
 	}
 }
+
+func TestSaveProductsProdusNouIaNumeleUnuiaSters(t *testing.T) {
+	s := deschide(t)
+	a, _ := s.AddProduct(model.Product{Denumire: "A", UM: "Kg.", CotaTVA: 11})
+
+	// A se sterge din lista, iar un produs nou preia exact numele lui, in
+	// aceeasi salvare. Utilizatorul vede o singura lista, fara duplicate:
+	// daca stergerea n-ar rula prima, numele lui A ar bloca inserarea si
+	// nicio apasare pe Salveaza n-ar mai scoate lista din blocaj.
+	err := s.SaveProducts([]model.Product{
+		{ID: 0, Denumire: "A", UM: "Buc.", PretVanzare: 7, CotaTVA: 21, Ordine: 0},
+	})
+	if err != nil {
+		t.Fatalf("SaveProducts: %v", err)
+	}
+
+	produse, _ := s.ListProducts()
+	if len(produse) != 1 {
+		t.Fatalf("catalogul = %+v, vrem un singur produs", produse)
+	}
+	if produse[0].ID == a.ID || produse[0].Denumire != "A" || produse[0].UM != "Buc." {
+		t.Errorf("produsul = %+v, vrem un produs nou numit A", produse[0])
+	}
+}
+
+func TestSaveProductsRedenumireCuNumeleUnuiaSters(t *testing.T) {
+	s := deschide(t)
+	a, _ := s.AddProduct(model.Product{Denumire: "A", UM: "Kg.", CotaTVA: 11})
+	s.AddProduct(model.Product{Denumire: "B", UM: "Kg.", CotaTVA: 11})
+
+	// B se sterge, iar A ia numele lui, in aceeasi salvare.
+	err := s.SaveProducts([]model.Product{
+		{ID: a.ID, Denumire: "B", UM: "Kg.", CotaTVA: 11, Ordine: 0},
+	})
+	if err != nil {
+		t.Fatalf("SaveProducts: %v", err)
+	}
+
+	produse, _ := s.ListProducts()
+	if len(produse) != 1 {
+		t.Fatalf("catalogul = %+v, vrem un singur produs", produse)
+	}
+	if produse[0].ID != a.ID || produse[0].Denumire != "B" {
+		t.Errorf("produsul = %+v, vrem id-ul lui A cu denumirea B", produse[0])
+	}
+}

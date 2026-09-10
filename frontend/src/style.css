@@ -280,21 +280,6 @@ tfoot td {
   margin-top: 16px;
 }
 
-.inline-field {
-  display: flex;
-  gap: 6px;
-}
-
-/* The plus/minus — încarcă/descarcă word of a computed footer pair. */
-.inline-field .tip {
-  flex: 0 0 100px;
-}
-
-.inline-field input.num {
-  flex: 1;
-  min-width: 0;
-}
-
 /* Toast */
 
 .toast {
@@ -365,13 +350,6 @@ tfoot td {
 td.cota,
 th.cota {
   width: 56px;
-}
-
-/* Marks a footer total that fails validation; Salvează refuses to save while
-   this class is applied, so the color is the only warning the user gets. */
-tfoot td.invalid {
-  color: var(--danger);
-  font-weight: 600;
 }
 
 /* Panoul de totaluri: etichetele deasupra valorilor, ca sa se citeasca

@@ -33,6 +33,83 @@ func TestFold(t *testing.T) {
 	}
 }
 
+func TestFoldInlocuiestePunctuatiaDinAltePrograme(t *testing.T) {
+	// Un nume copiat dintr-un editor de text vine cu liniuta lunga, ghilimele
+	// rotunde si spatiu insecabil. Fonturile de baza ale PDF-ului sunt
+	// Latin-1 si primesc octetii netradusi, deci orice ramane peste ASCII se
+	// tipareste ca octeti bruti.
+	cazuri := []struct{ in, vrem string }{
+		{"Alfa \u2014 Prod S.R.L.", "Alfa - Prod S.R.L."},
+		{"\u201cAlfa\u201d Prod", "\"Alfa\" Prod"},
+		{"Alfa\u00a0Prod", "Alfa Prod"},
+		{"Alfa\u2026", "Alfa..."},
+		{"Caf\u00e9 M\u00fcller & S\u00f8n", "Cafe Muller & Son"},
+		{"Str. Mor\u021bii nr. 3", "Str. Mortii nr. 3"},
+	}
+	for _, c := range cazuri {
+		if got := Fold(c.in); got != c.vrem {
+			t.Errorf("Fold(%q) = %q, vrem %q", c.in, got, c.vrem)
+		}
+	}
+}
+
+func TestFoldNuLasaNimicPesteASCII(t *testing.T) {
+	// Un semn fara echivalent devine un singur "?", iar un sir intreg de
+	// astfel de semne tot unul: celula arata ca s-a pierdut ceva, fara sa se
+	// umple de semne de intrebare si fara sa ramana goala.
+	cazuri := []struct{ in, vrem string }{
+		{"\u041a\u043e\u0432\u0430\u043b\u0451\u0432", "?"},
+		{"Alfa \u4e2d\u6587 SRL", "Alfa ? SRL"},
+		{"\U0001f600", "?"},
+		{"linia 1\nlinia 2", "linia 1 linia 2"},
+	}
+	for _, c := range cazuri {
+		if got := Fold(c.in); got != c.vrem {
+			t.Errorf("Fold(%q) = %q, vrem %q", c.in, got, c.vrem)
+		}
+	}
+
+	for _, r := range Fold("a\u2014b\u00e9c\u041a\u0434\U0001f600\u00a0") {
+		if r < 0x20 || r > 0x7e {
+			t.Errorf("Fold a lasat %q (U+%04X), vrem doar ASCII tiparibil", r, r)
+		}
+	}
+}
+
+func TestAntetulAreUnitateaInainteaTitlului(t *testing.T) {
+	// Sectiunea 7 din specificatie fixeaza ordinea paginii: antetul
+	// (Unitatea, nr., din data), apoi titlul. Ordinea se citeste din fluxul
+	// de continut necomprimat, singurul loc unde chiar apare ce s-a desenat.
+	pdf := construieste(doc())
+	pdf.SetCompression(false)
+	var buf bytes.Buffer
+	if err := pdf.Output(&buf); err != nil {
+		t.Fatalf("Output: %v", err)
+	}
+	unitatea := bytes.Index(buf.Bytes(), []byte("UNITATEA"))
+	titlu := bytes.Index(buf.Bytes(), []byte("NOTA DE RECEPTIE"))
+	if unitatea == -1 || titlu == -1 {
+		t.Fatalf("nu am gasit antetul in PDF: unitatea = %d, titlu = %d", unitatea, titlu)
+	}
+	if unitatea > titlu {
+		t.Errorf("titlul e desenat inaintea unitatii (%d > %d)", unitatea, titlu)
+	}
+}
+
+func TestEtichetelePotrivescInColoane(t *testing.T) {
+	// Randul de antet al tabelului e desenat la doua randuri inaltime pentru
+	// lizibilitate, nu pentru ca s-ar rupe pe doua linii: CellFormat nu rupe
+	// niciodata textul, deci o eticheta mai lata decat coloana ei ar iesi
+	// peste vecina, tacut.
+	pdf := construieste(doc())
+	pdf.SetFont("Arial", "B", 7)
+	for i, eticheta := range headerRow() {
+		if l := pdf.GetStringWidth(eticheta); l > colWidths[i] {
+			t.Errorf("eticheta %q are %.1f mm, coloana are %.1f mm", eticheta, l, colWidths[i])
+		}
+	}
+}
+
 func TestRenderIntoarceUnPDF(t *testing.T) {
 	data, err := Render(doc())
 	if err != nil {

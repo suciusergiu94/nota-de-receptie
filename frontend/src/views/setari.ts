@@ -148,7 +148,8 @@ export async function renderSetariView(
       setari.nextNr = Number((e.target as HTMLInputElement).value);
     });
     outlet.querySelector<HTMLInputElement>('#s-cota')!.addEventListener('input', (e) => {
-      setari.cotaTva = parseNumber((e.target as HTMLInputElement).value);
+      const cota = parseNumber((e.target as HTMLInputElement).value);
+      if (cota !== undefined) setari.cotaTva = cota;
     });
 
     outlet.querySelectorAll<HTMLElement>('tr[data-produs]').forEach((rand) => {
@@ -157,7 +158,15 @@ export async function renderSetariView(
         camp.addEventListener('input', () => {
           const p = produse[i] as unknown as Record<string, unknown>;
           const nume = camp.dataset.camp!;
-          p[nume] = nume === 'denumire' || nume === 'um' ? camp.value : parseNumber(camp.value);
+          if (nume === 'denumire' || nume === 'um') {
+            p[nume] = camp.value;
+            return;
+          }
+          // A figure that cannot be read leaves the previous one in place;
+          // salveaza refuses the whole list while a cell still reads like
+          // that, so no unreadable cell is quietly filed as zero.
+          const numar = parseNumber(camp.value);
+          if (numar !== undefined) p[nume] = numar;
         });
       });
       rand.querySelector('.muta-sus')!.addEventListener('click', () => muta(i, -1));
@@ -197,7 +206,7 @@ export async function renderSetariView(
    * warning beyond the confirmation.
    */
   async function stergeFurnizor(nume: string): Promise<void> {
-    if (!(await showConfirm(`Ștergi sugestia „${nume}"?`))) return;
+    if (!(await showConfirm(`Ștergi sugestia „${nume}”?`))) return;
     try {
       await DeleteFurnizor(nume);
       furnizori = await ListFurnizori();
@@ -220,21 +229,58 @@ export async function renderSetariView(
     }
     const duplicat = primulDuplicat(produse);
     if (duplicat !== undefined) {
-      await showAlert(`Denumirea „${duplicat}" apare de două ori în listă.`);
+      await showAlert(`Denumirea „${duplicat}” apare de două ori în listă.`);
+      return;
+    }
+    const celula = primaCelulaNumericaDeNecitit();
+    if (celula !== undefined) {
+      await showAlert(celula);
       return;
     }
 
+    // The two calls are saved and reported apart. They share no invariant —
+    // settings and catalogue are separate tables — so no transaction spans
+    // them, but that also means the first can land and the second fail. One
+    // message for both would leave the user pressing Salvează again with no
+    // idea which half is still missing.
     try {
       await SaveSettings(setari);
+    } catch (err) {
+      showError('Nu s-au putut salva setările', err);
+      return;
+    }
+    try {
       await SaveProducts(produse);
       produse = await ListProducts();
     } catch (err) {
-      showError('Nu s-au putut salva setările', err);
+      showError('Setările au fost salvate, dar produsele nu', err);
       return;
     }
     showToast('Setările au fost salvate.');
     await refreshSidebar();
     render();
+  }
+
+  /**
+   * The first numeric cell whose text is not a figure, described in Romanian.
+   *
+   * Such a cell keeps the last figure that could be read from it, so without
+   * this the catalogue would be filed with a price the screen no longer shows.
+   */
+  function primaCelulaNumericaDeNecitit(): string | undefined {
+    if (parseNumber(outlet.querySelector<HTMLInputElement>('#s-cota')!.value) === undefined) {
+      return 'Cota T.V.A. implicită nu este un număr.';
+    }
+    const numeCampuri: Record<string, string> = {
+      pretVanzare: 'Prețul de vânzare',
+      cotaTva: 'Cota T.V.A.',
+    };
+    for (const camp of outlet.querySelectorAll<HTMLInputElement>('input.num[data-camp]')) {
+      if (parseNumber(camp.value) !== undefined) continue;
+      const rand = Number((camp.closest('tr') as HTMLElement).dataset.produs) + 1;
+      return `Produsul ${rand}: „${numeCampuri[camp.dataset.camp!]}” nu este un număr.`;
+    }
+    return undefined;
   }
 }
 

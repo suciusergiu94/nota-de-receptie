@@ -10,10 +10,27 @@ describe('parseNumber', () => {
     expect(parseNumber('162,20')).toBe(162.2);
   });
 
-  it('treats blank and unparseable input as zero', () => {
+  it('citeste formatul romanesc cu punct la mii si virgula la zecimale', () => {
+    expect(parseNumber('1.234,50')).toBe(1234.5);
+    expect(parseNumber('1.234.567,89')).toBe(1234567.89);
+    expect(parseNumber('-1.234,50')).toBe(-1234.5);
+  });
+
+  it('citeste un grup de mii fara zecimale', () => {
+    expect(parseNumber('1.234')).toBe(1234);
+  });
+
+  it('treats blank input as zero', () => {
     expect(parseNumber('')).toBe(0);
     expect(parseNumber('   ')).toBe(0);
-    expect(parseNumber('abc')).toBe(0);
+  });
+
+  it('nu transforma in zero un text care nu e numar', () => {
+    // Zero e o valoare pe care o receptie chiar o poate avea; daca "abc" ar
+    // da 0, s-ar salva ca si cum utilizatorul l-ar fi scris el.
+    expect(parseNumber('abc')).toBeUndefined();
+    expect(parseNumber('1.234.50')).toBeUndefined();
+    expect(parseNumber('-')).toBeUndefined();
   });
 
   it('trims surrounding whitespace', () => {
@@ -22,13 +39,38 @@ describe('parseNumber', () => {
 });
 
 describe('formatNumber', () => {
-  it('renders two decimals by default', () => {
-    expect(formatNumber(328.5)).toBe('328.50');
-    expect(formatNumber(0)).toBe('0.00');
+  it('scrie zecimalele cu virgula si miile cu punct', () => {
+    expect(formatNumber(328.5)).toBe('328,50');
+    expect(formatNumber(0)).toBe('0,00');
+    expect(formatNumber(1234.5)).toBe('1.234,50');
+    expect(formatNumber(-1234.5)).toBe('-1.234,50');
   });
 
   it('honours an explicit decimal count', () => {
-    expect(formatNumber(21.9, 3)).toBe('21.900');
+    expect(formatNumber(21.9, 3)).toBe('21,900');
+    expect(formatNumber(1234.5, 0)).toBe('1.235');
+  });
+});
+
+describe('parseNumber si formatNumber impreuna', () => {
+  it('citesc inapoi exact ce scriu in celule', () => {
+    for (const valoare of [0, 1, 20, 162.2, 1234.5, 1234567.89, -1234.5, 0.05]) {
+      expect(parseNumber(formatNumber(valoare))).toBe(valoare);
+    }
+  });
+
+  it('nu deriveaza dupa mai multe treceri', () => {
+    // O valoare tastata, formatata, recitita si reformatata trebuie sa arate
+    // la fel: altfel un pret ar aluneca la fiecare redesenare a tabelului.
+    const tastat = '1.234,50';
+    const odata = formatNumber(parseNumber(tastat)!);
+    const inca = formatNumber(parseNumber(odata)!);
+    expect(odata).toBe(tastat);
+    expect(inca).toBe(tastat);
+  });
+
+  it('scriu la fel ca formatLei, ca sa nu existe doua notatii pe acelasi rand', () => {
+    expect(formatNumber(1234.5)).toBe(formatLei(1234.5));
   });
 });
 

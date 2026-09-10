@@ -86,7 +86,27 @@ func (s *Store) SaveProducts(produse []model.Product) error {
 	}
 	defer tx.Rollback()
 
-	// Pass 1: vacate every existing row's current name into a value that
+	// Pass 1: delete what the list no longer carries. This runs first because
+	// a deleted product keeps its name until it is gone, and that name is one
+	// the list may well be handing to another row: deleting "A" and adding a
+	// new "A", or deleting "B" and renaming "A" to "B", are both a single
+	// save. Deleting last made either of those collide with a name nothing on
+	// screen still holds, and since the deletion and the rename travel in the
+	// same list, pressing Salvează again could never break the deadlock.
+	//
+	// Only entries that already have an id can name a row to keep; a row the
+	// user has just added has no id yet and cannot save anything from deletion.
+	pastrate := make([]any, 0, len(produse))
+	for _, p := range produse {
+		if p.ID != 0 {
+			pastrate = append(pastrate, p.ID)
+		}
+	}
+	if err := stergeProduseleLipsa(tx, pastrate); err != nil {
+		return err
+	}
+
+	// Pass 2: vacate every surviving row's current name into a value that
 	// cannot collide with anything (SQLite checks UNIQUE per statement, not
 	// at commit). Without this, swapping two products' names in one save
 	// would have the first UPDATE collide with a name the other row hasn't
@@ -108,30 +128,23 @@ func (s *Store) SaveProducts(produse []model.Product) error {
 		}
 	}
 
-	// Pass 2: write the final values. A genuine duplicate (two entries in
+	// Pass 3: write the final values. A genuine duplicate (two entries in
 	// the input asking for the same name) still collides here and is
-	// reported as ErrDenumireDuplicata; a name freed up by pass 1 no longer
-	// blocks a different row from taking it.
-	pastrate := make([]any, 0, len(produse))
+	// reported as ErrDenumireDuplicata; a name freed by pass 1 or pass 2 no
+	// longer blocks a different row from taking it.
 	for i, p := range produse {
 		denumire := strings.TrimSpace(p.Denumire)
 		if p.ID == 0 {
-			res, err := tx.Exec(
+			if _, err := tx.Exec(
 				`INSERT INTO products (denumire, um, pret_vanzare, cota_tva, ordine)
 				 VALUES (?, ?, ?, ?, ?)`,
 				denumire, p.UM, p.PretVanzare, p.CotaTVA, i,
-			)
-			if err != nil {
+			); err != nil {
 				if esteConflictDeDenumire(err) {
 					return ErrDenumireDuplicata
 				}
 				return fmt.Errorf("salvare produs %q: %w", denumire, err)
 			}
-			id, err := res.LastInsertId()
-			if err != nil {
-				return fmt.Errorf("salvare produs %q: %w", denumire, err)
-			}
-			pastrate = append(pastrate, id)
 			continue
 		}
 		if _, err := tx.Exec(
@@ -144,13 +157,10 @@ func (s *Store) SaveProducts(produse []model.Product) error {
 			}
 			return fmt.Errorf("salvare produs %q: %w", denumire, err)
 		}
-		pastrate = append(pastrate, p.ID)
 	}
 
-	// Pass 3: delete anything not carried over.
-	if err := stergeProduseleLipsa(tx, pastrate); err != nil {
-		return err
-	}
+	// Everything above is one transaction: a refusal in the write pass rolls
+	// the deletions back with it, so a save that fails changes nothing.
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("salvare produse: %w", err)
 	}

@@ -53,36 +53,56 @@ describe('randDinProdus', () => {
 
 describe('validareDocument', () => {
   it('accepta un document complet', () => {
-    expect(validareDocument(docValid(), '09/09/2026')).toBeUndefined();
+    expect(validareDocument(docValid(), '09/09/2026', '08/09/2026')).toBeUndefined();
   });
 
   it('refuza un numar mai mic de 1', () => {
     const d = docValid();
     d.nr = 0;
-    expect(validareDocument(d, '09/09/2026')).toMatch(/număr/i);
+    expect(validareDocument(d, '09/09/2026', '08/09/2026')).toMatch(/număr/i);
   });
 
   it('refuza o data care nu exista', () => {
-    expect(validareDocument(docValid(), '31/02/2026')).toMatch(/dat/i);
+    expect(validareDocument(docValid(), '31/02/2026', '08/09/2026')).toMatch(/dat/i);
+  });
+
+  it('accepta o data de livrare goala: nu orice receptie are un document', () => {
+    const d = docValid();
+    d.documentLivrareData = '';
+    expect(validareDocument(d, '09/09/2026', '')).toBeUndefined();
+    expect(validareDocument(d, '09/09/2026', '   ')).toBeUndefined();
+  });
+
+  it('refuza o data de livrare tastata pe jumatate, desi documentul o are pe cea veche', () => {
+    // Formularul scrie data de livrare in document doar cand se poate citi,
+    // asa ca modelul are inca 08/09/2026 in timp ce campul arata altceva.
+    // Verificarea se face pe text, altfel nota s-ar salva cu data veche.
+    const d = docValid();
+    expect(d.documentLivrareData).toBe('2026-09-08');
+    expect(validareDocument(d, '09/09/2026', '15/09/202')).toMatch(/livrare/i);
+  });
+
+  it('refuza o data de livrare care nu exista', () => {
+    expect(validareDocument(docValid(), '09/09/2026', '31/02/2026')).toMatch(/livrare/i);
   });
 
   it('refuza un document fara randuri', () => {
     const d = docValid();
     d.randuri = [];
-    expect(validareDocument(d, '09/09/2026')).toMatch(/produs/i);
+    expect(validareDocument(d, '09/09/2026', '08/09/2026')).toMatch(/produs/i);
   });
 
   it('refuza un rand fara denumire si spune care', () => {
     const d = docValid();
     d.randuri[0].denumire = '   ';
-    const problema = validareDocument(d, '09/09/2026');
+    const problema = validareDocument(d, '09/09/2026', '08/09/2026');
     expect(problema).toMatch(/rândul 1/i);
   });
 
   it('refuza o unitate de masura pe care formularul n-o cunoaste', () => {
     const d = docValid();
     d.randuri[0].um = 'litri';
-    expect(validareDocument(d, '09/09/2026')).toMatch(/U\/M/i);
+    expect(validareDocument(d, '09/09/2026', '08/09/2026')).toMatch(/U\/M/i);
   });
 });
 

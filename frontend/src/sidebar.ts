@@ -1,4 +1,6 @@
 import { DocumentSummary, ListDocuments, showError } from './api';
+import { showConfirm } from './dialog';
+import { ciornaAreRanduriNesalvate } from './draft';
 import { formatDateRO } from './format';
 import { navigate } from './router';
 
@@ -63,7 +65,7 @@ export async function renderSidebar(el: HTMLElement): Promise<void> {
   `;
 
   el.querySelector<HTMLButtonElement>('#new-doc')!.addEventListener('click', () => {
-    navigate(DRAFT_HASH);
+    void notaNoua();
   });
 
   markActive(el);
@@ -73,6 +75,27 @@ export async function renderSidebar(el: HTMLElement): Promise<void> {
     hashchangeListenerRegistered = true;
     window.addEventListener('hashchange', () => markActive(el));
   }
+}
+
+/**
+ * Starts a new note, asking first if that would throw one away.
+ *
+ * Pressing the button while already on the draft route re-renders it in
+ * place, and the draft lives only in the form: a dozen typed rows go with one
+ * stray click, and the sidebar entry saying "Nesalvată" reads as though
+ * something were being kept. Only the draft route has anything to lose — a
+ * saved note is on disk, and from any other route the draft is already gone —
+ * so nothing is asked anywhere else, and an untouched empty draft is not
+ * worth a question either.
+ */
+async function notaNoua(): Promise<void> {
+  if (currentHash() === DRAFT_HASH && ciornaAreRanduriNesalvate()) {
+    const continua = await showConfirm(
+      'Nota nouă nu este salvată. Începi alta și pierzi rândurile scrise?',
+    );
+    if (!continua) return;
+  }
+  navigate(DRAFT_HASH);
 }
 
 function markActive(el: HTMLElement): void {

@@ -52,15 +52,17 @@ func construieste(doc model.Document) *fpdf.Fpdf {
 	return pdf
 }
 
+// drawHeader draws the unit line first and the title under it, which is the
+// order the paper form has: whose reception this is, then what the sheet is.
 func drawHeader(pdf *fpdf.Fpdf, doc model.Document) {
-	pdf.SetFont("Arial", "B", 15)
-	pdf.CellFormat(277, 8, "NOTA DE RECEPTIE", "", 1, "C", false, 0, "")
-
-	pdf.Ln(2)
 	pdf.SetFont("Arial", "", 10)
 	pdf.CellFormat(150, 6, "UNITATEA: "+Fold(doc.Unitate), "", 0, "L", false, 0, "")
 	pdf.CellFormat(60, 6, fmt.Sprintf("nr. %d", doc.Nr), "", 0, "L", false, 0, "")
 	pdf.CellFormat(67, 6, "din "+formatDate(doc.Data), "", 1, "L", false, 0, "")
+
+	pdf.Ln(2)
+	pdf.SetFont("Arial", "B", 15)
+	pdf.CellFormat(277, 8, "NOTA DE RECEPTIE", "", 1, "C", false, 0, "")
 	pdf.Ln(3)
 }
 
@@ -165,8 +167,11 @@ func align(col int) string {
 	}
 }
 
-// drawTableHeader draws one instance of the column header row. It is taller
-// than a body row because several of the labels wrap onto two lines.
+// drawTableHeader draws one instance of the column header row. It is drawn at
+// twice a body row's height on purpose: the labels are set two points smaller
+// than the figures, and the extra air is what keeps a nine-column band of them
+// readable. Nothing wraps — CellFormat cannot — and every label fits its
+// column, the widest ("Valoare la pret de vanzare") by some 5mm.
 func drawTableHeader(pdf *fpdf.Fpdf) {
 	pdf.SetFont("Arial", "B", 7)
 	pdf.SetX(marginLeft)

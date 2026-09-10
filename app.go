@@ -31,8 +31,15 @@ func NewApp() *App {
 //
 // A failure here (a corrupt file, an unwritable directory, a full disk) is
 // entirely plausible on a shipped desktop app. The user gets a Romanian
-// dialog explaining what happened instead of a Go panic trace, and the app
-// then quits cleanly rather than continuing with a.store left nil.
+// dialog explaining what happened instead of a Go panic trace.
+//
+// What happens next is worth being plain about: startup returns with a.store
+// still nil and asks Wails to quit, so the quit races the frontend's first
+// bound call, every one of which dereferences a.store. The race is narrow
+// rather than closed — MessageDialog blocks startup until the user dismisses
+// it, and the quit follows immediately — and the thirteen bound methods are
+// left without nil guards deliberately: thirteen checks against a window that
+// is already on its way out would cost more clarity than they buy.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
@@ -51,8 +58,8 @@ func (a *App) startup(ctx context.Context) {
 	a.store = s
 }
 
-// fatalStartupError shows a native error dialog and quits. Used only from
-// startup, before any bound method can be called from the frontend.
+// fatalStartupError shows a native error dialog and then asks Wails to quit.
+// Used only from startup; see the note there about what it does not do.
 func (a *App) fatalStartupError(message string) {
 	runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
 		Type:    runtime.ErrorDialog,
