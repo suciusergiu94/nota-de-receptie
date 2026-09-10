@@ -158,6 +158,94 @@ func TestImportulImparteIntreDouaRanduriDeIntrare(t *testing.T) {
 	aproape(t, "cota[1]", *randuri[1].ValoareVanzareImpusa, 50)
 }
 
+func TestImportulImparteDupaCantitateCandPreturileSuntZero(t *testing.T) {
+	path := fixtura(t)
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO documents (id, nr, data, gestiune, created_at, updated_at)
+		 VALUES (3, 3, '2026-09-06', 'Magazin Bradet', '2026-09-06T10:00:00Z', '2026-09-06T10:00:00Z')`,
+	); err != nil {
+		t.Fatalf("document: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO document_intrare_rows (document_id, pozitie, denumire, um,
+		        cantitate, pret_fara_tva, pret_cu_tva, cota_tva)
+		 VALUES (3, 0, 'A', 'Kg', 100, 0, 0, 11),
+		        (3, 1, 'B', 'Kg', 300, 0, 0, 11)`,
+	); err != nil {
+		t.Fatalf("intrare: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO document_iesire_rows (document_id, pozitie, denumire, um,
+		        pret_cu_tva, cantitate, pret_fara_tva, cota_tva)
+		 VALUES (3, 0, 'Ceva', 'Kg', 10, 10, 9.01, 11)`,
+	); err != nil {
+		t.Fatalf("iesire: %v", err)
+	}
+	db.Close()
+
+	randuri, err := ImportDin(path, 3)
+	if err != nil {
+		t.Fatalf("ImportDin: %v", err)
+	}
+	if len(randuri) != 2 {
+		t.Fatalf("randuri = %d, vrem 2", len(randuri))
+	}
+	if randuri[0].ValoareVanzareImpusa == nil || randuri[1].ValoareVanzareImpusa == nil {
+		t.Fatal("un rand nu are valoare impusa")
+	}
+	// Preturile sunt zero pe ambele randuri, deci nu exista nicio proportie
+	// de valoare de urmat; impartirea trebuie sa cada pe cantitati: 100 si
+	// 300, adica 25% si 75% din totalul de 100.
+	aproape(t, "cota[0]", *randuri[0].ValoareVanzareImpusa, 25)
+	aproape(t, "cota[1]", *randuri[1].ValoareVanzareImpusa, 75)
+}
+
+func TestImportulNumesteRandulDupaDocumentCandDenumireaLipseste(t *testing.T) {
+	path := fixtura(t)
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	// nr difera intentionat de id, ca testul sa nu poata trece daca
+	// implementarea foloseste din greseala id-ul in loc de nr.
+	if _, err := db.Exec(
+		`INSERT INTO documents (id, nr, data, gestiune, created_at, updated_at)
+		 VALUES (5, 42, '2026-09-07', 'Magazin Bradet', '2026-09-07T10:00:00Z', '2026-09-07T10:00:00Z')`,
+	); err != nil {
+		t.Fatalf("document: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO document_intrare_rows (document_id, pozitie, denumire, um,
+		        cantitate, pret_fara_tva, pret_cu_tva, cota_tva)
+		 VALUES (5, 0, '', 'Kg', 10, 5, 5.55, 11)`,
+	); err != nil {
+		t.Fatalf("intrare: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO document_iesire_rows (document_id, pozitie, denumire, um,
+		        pret_cu_tva, cantitate, pret_fara_tva, cota_tva)
+		 VALUES (5, 0, 'Ceva', 'Kg', 10, 10, 9.01, 11)`,
+	); err != nil {
+		t.Fatalf("iesire: %v", err)
+	}
+	db.Close()
+
+	randuri, err := ImportDin(path, 5)
+	if err != nil {
+		t.Fatalf("ImportDin: %v", err)
+	}
+	if len(randuri) != 1 {
+		t.Fatalf("randuri = %d, vrem 1", len(randuri))
+	}
+	if randuri[0].Denumire != "Proces verbal nr. 42" {
+		t.Errorf("Denumire = %q, vrem \"Proces verbal nr. 42\"", randuri[0].Denumire)
+	}
+}
+
 func TestImportulRefuzaUnProcesVerbalFaraIntrari(t *testing.T) {
 	path := fixtura(t)
 	db, err := sql.Open("sqlite", path)
