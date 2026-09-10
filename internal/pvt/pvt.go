@@ -38,6 +38,7 @@ var (
 	ErrVersiuneVeche = errors.New("baza aplicatiei Proces verbal de transare are o forma mai veche, dinaintea primei versiuni publicate; deschide o data acea aplicatie si incearca din nou")
 	ErrForma         = errors.New("baza aplicatiei Proces verbal de transare are alta forma decat cea asteptata; probabil a fost actualizata la o versiune mai noua")
 	ErrJurnal        = errors.New("baza aplicatiei Proces verbal de transare a ramas cu un jurnal neincheiat dupa o inchidere fortata; deschide o data acea aplicatie si incearca din nou")
+	ErrFaraIntrare   = errors.New("procesul verbal ales nu are niciun rand in tabelul \"ce intra\"")
 )
 
 // Sumar is one proces verbal as it appears in the picker.
