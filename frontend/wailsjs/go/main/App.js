@@ -26,12 +26,20 @@ export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
 }
 
+export function ImportProcesVerbal(arg1) {
+  return window['go']['main']['App']['ImportProcesVerbal'](arg1);
+}
+
 export function ListDocuments() {
   return window['go']['main']['App']['ListDocuments']();
 }
 
 export function ListFurnizori() {
   return window['go']['main']['App']['ListFurnizori']();
+}
+
+export function ListProceseVerbale() {
+  return window['go']['main']['App']['ListProceseVerbale']();
 }
 
 export function ListProducts() {

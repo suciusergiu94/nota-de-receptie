@@ -5,19 +5,23 @@ import {
   ExportPDF,
   GetDocument,
   GetSettings,
+  ImportProcesVerbal,
   ListDocuments,
   ListFurnizori,
   ListProducts,
+  ListProceseVerbale,
   NewDocumentDraft,
   SaveDocument,
   SaveProducts,
   SaveSettings,
 } from '../wailsjs/go/main/App';
-import { model } from '../wailsjs/go/models';
+import { model, pvt } from '../wailsjs/go/models';
 import { showAlert } from './dialog';
 
 export type Document = model.Document;
 export type DocumentSummary = model.DocumentSummary;
+export type ProcesVerbalSumar = pvt.Sumar;
+export type ProceseVerbale = pvt.Lista;
 export type Rand = model.Rand;
 export type Product = model.Product;
 export type Settings = model.Settings;
@@ -29,9 +33,11 @@ export {
   ExportPDF,
   GetDocument,
   GetSettings,
+  ImportProcesVerbal,
   ListDocuments,
   ListFurnizori,
   ListProducts,
+  ListProceseVerbale,
   NewDocumentDraft,
   SaveDocument,
   SaveProducts,

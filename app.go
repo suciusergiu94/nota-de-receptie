@@ -12,6 +12,7 @@ import (
 	"nota-de-receptie/internal/appdir"
 	"nota-de-receptie/internal/model"
 	"nota-de-receptie/internal/pdfdoc"
+	"nota-de-receptie/internal/pvt"
 	"nota-de-receptie/internal/store"
 )
 
@@ -96,6 +97,14 @@ func (a *App) ListFurnizori() ([]string, error) { return a.store.ListFurnizori()
 
 // DeleteFurnizor forgets one supplier suggestion.
 func (a *App) DeleteFurnizor(nume string) error { return a.store.DeleteFurnizor(nume) }
+
+// ListProceseVerbale lists the proces verbal documents of the sibling
+// application, or reports that it is not installed.
+func (a *App) ListProceseVerbale() (pvt.Lista, error) { return pvt.List() }
+
+// ImportProcesVerbal turns one proces verbal into rows ready to append to the
+// note on screen.
+func (a *App) ImportProcesVerbal(id int64) ([]model.Rand, error) { return pvt.Import(id) }
 
 // ListDocuments returns the sidebar history, newest first.
 func (a *App) ListDocuments() ([]model.DocumentSummary, error) { return a.store.ListDocuments() }
