@@ -23,6 +23,24 @@ go test ./...
 cd frontend && npm test
 ```
 
+## Import din „Proces verbal de transare"
+
+Când carcasa de pe factură a fost transată, valoarea ei de vânzare se ia din
+procesul verbal întocmit în aplicația soră, cu butonul **„+ Adaugă din proces
+verbal"** din formularul notei.
+
+Cele două aplicații nu comunică între ele: nota citește o singură dată fișierul
+celeilalte, read-only, și copiază cifrele. Aplicația soră trebuie instalată și
+pornită cel puțin o dată pe același cont de utilizator Windows, fiindcă baza ei
+de date se creează la prima pornire:
+
+- Windows: `%APPDATA%\proces-verbal-transare\data.db`
+- macOS: `~/Library/Application Support/proces-verbal-transare/data.db`
+
+Rândurile importate nu se pot edita — poartă valoarea din procesul verbal, care
+înseamnă ceva doar alături de cantitatea și prețul din care a fost calculată —
+și stau întotdeauna la finalul tabelului. Se pot șterge și reimporta.
+
 ## Build
 
 ```bash

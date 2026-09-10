@@ -229,6 +229,37 @@ func TestRandulTotalNuAreCantitate(t *testing.T) {
 	}
 }
 
+func TestTabelulTipareteValoareaImpusaSiTotalulEi(t *testing.T) {
+	// Randul importat dintr-un proces verbal isi poarta propria valoare la pret
+	// de vanzare. Inmultirea cantitate x pret ar da 2501.12; pe hartie trebuie
+	// sa apara totalul procesului verbal, si el trebuie sa intre ca atare in
+	// randul TOTAL.
+	impusa := 2501.35
+	d := model.Document{
+		Nr: 7, Data: "2026-09-09", Unitate: "S.C. Largiana Carn S.R.L.",
+		Randuri: []model.Rand{
+			{Pozitie: 0, Denumire: "Oua", UM: "Buc.", Cantitate: 30,
+				PretFaraTVA: 0.9, CotaTVA: 11, PretVanzare: 1.5},
+			{Pozitie: 1, Denumire: "Carcasa", UM: "Kg.", Cantitate: 162.2,
+				PretFaraTVA: 12.30, CotaTVA: 11, PretVanzare: 15.42,
+				ValoareVanzareImpusa: &impusa},
+		},
+	}
+
+	celule := randCells(1, d.Randuri[1])
+	if celule[8] != "2.501,35" {
+		t.Errorf("valoarea la pret de vanzare = %q, vrem \"2.501,35\"", celule[8])
+	}
+	if celule[7] != "15,42" {
+		t.Errorf("pretul de vanzare = %q, vrem \"15,42\"", celule[7])
+	}
+
+	total := randTotal(d)
+	if total[8] != "2.546,35" {
+		t.Errorf("totalul la pret de vanzare = %q, vrem \"2.546,35\"", total[8])
+	}
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a
