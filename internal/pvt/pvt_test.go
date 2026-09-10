@@ -262,6 +262,100 @@ func TestImportulRefuzaUnProcesVerbalFaraIntrari(t *testing.T) {
 	}
 }
 
+func TestRefuzaOBazaCareAPierdutOColoanaDinIntrare(t *testing.T) {
+	path := fixtura(t)
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	// A single dropped column is the realistic sibling-update failure this
+	// check exists for, as opposed to the whole-table drop above.
+	if _, err := db.Exec(`ALTER TABLE document_intrare_rows DROP COLUMN pret_cu_tva`); err != nil {
+		t.Fatalf("drop coloana: %v", err)
+	}
+	db.Close()
+
+	// document_intrare_rows.pret_cu_tva is read by citesteIntrare, which only
+	// ImportDin calls; ListaDin never touches that column, so this check must
+	// go through an import to actually exercise the hole in the shape check.
+	if _, err := ImportDin(path, 1); !errors.Is(err, ErrForma) {
+		t.Errorf("err = %v, vrem ErrForma", err)
+	}
+}
+
+func TestUmNotaGolMergeCaKg(t *testing.T) {
+	path := fixtura(t)
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO documents (id, nr, data, gestiune, created_at, updated_at)
+		 VALUES (6, 6, '2026-09-08', 'Magazin Bradet', '2026-09-08T10:00:00Z', '2026-09-08T10:00:00Z')`,
+	); err != nil {
+		t.Fatalf("document: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO document_intrare_rows (document_id, pozitie, denumire, um,
+		        cantitate, pret_fara_tva, pret_cu_tva, cota_tva)
+		 VALUES (6, 0, 'Carcasa fara um', '  ', 10, 5, 5.55, 11)`,
+	); err != nil {
+		t.Fatalf("intrare: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO document_iesire_rows (document_id, pozitie, denumire, um,
+		        pret_cu_tva, cantitate, pret_fara_tva, cota_tva)
+		 VALUES (6, 0, 'Ceva', 'Kg', 10, 10, 9.01, 11)`,
+	); err != nil {
+		t.Fatalf("iesire: %v", err)
+	}
+	db.Close()
+
+	randuri, err := ImportDin(path, 6)
+	if err != nil {
+		t.Fatalf("ImportDin: %v", err)
+	}
+	if len(randuri) != 1 {
+		t.Fatalf("randuri = %d, vrem 1", len(randuri))
+	}
+	if randuri[0].UM != "Kg." {
+		t.Errorf("UM = %q, vrem \"Kg.\" pentru o unitate goala", randuri[0].UM)
+	}
+}
+
+func TestImportulRefuzaOUnitateNecunoscuta(t *testing.T) {
+	path := fixtura(t)
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO documents (id, nr, data, gestiune, created_at, updated_at)
+		 VALUES (7, 7, '2026-09-09', 'Magazin Bradet', '2026-09-09T10:00:00Z', '2026-09-09T10:00:00Z')`,
+	); err != nil {
+		t.Fatalf("document: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO document_intrare_rows (document_id, pozitie, denumire, um,
+		        cantitate, pret_fara_tva, pret_cu_tva, cota_tva)
+		 VALUES (7, 0, 'Ceva ciudat', 'Litri', 10, 5, 5.55, 11)`,
+	); err != nil {
+		t.Fatalf("intrare: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO document_iesire_rows (document_id, pozitie, denumire, um,
+		        pret_cu_tva, cantitate, pret_fara_tva, cota_tva)
+		 VALUES (7, 0, 'Ceva', 'Kg', 10, 10, 9.01, 11)`,
+	); err != nil {
+		t.Fatalf("iesire: %v", err)
+	}
+	db.Close()
+
+	if _, err := ImportDin(path, 7); !errors.Is(err, ErrUM) {
+		t.Errorf("err = %v, vrem ErrUM", err)
+	}
+}
+
 func TestImportulRefuzaUnIdInexistent(t *testing.T) {
 	if _, err := ImportDin(fixtura(t), 99); err == nil {
 		t.Error("un id inexistent trebuie sa dea eroare")

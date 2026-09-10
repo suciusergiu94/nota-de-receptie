@@ -40,6 +40,7 @@ var (
 	ErrForma         = errors.New("baza aplicatiei Proces verbal de transare are alta forma decat cea asteptata; probabil a fost actualizata la o versiune mai noua")
 	ErrJurnal        = errors.New("baza aplicatiei Proces verbal de transare a ramas cu un jurnal neincheiat dupa o inchidere fortata; deschide o data acea aplicatie si incearca din nou")
 	ErrFaraIntrare   = errors.New("procesul verbal ales nu are niciun rand in tabelul \"ce intra\"")
+	ErrUM            = errors.New("procesul verbal ales foloseste o unitate de masura pe care aceasta aplicatie nu o cunoaste")
 )
 
 // Sumar is one proces verbal as it appears in the picker.
@@ -234,6 +235,18 @@ func ImportDin(path string, id int64) ([]model.Rand, error) {
 		return nil, ErrFaraIntrare
 	}
 
+	// Resolve every row's unit before building anything: a half-converted
+	// import is not useful, so a refusal must land before the loop below
+	// starts producing rows.
+	umuri := make([]string, len(intrari))
+	for i, in := range intrari {
+		um, err := umNota(in.UM)
+		if err != nil {
+			return nil, err
+		}
+		umuri[i] = um
+	}
+
 	totaluri, err := totaluriIesire(db)
 	if err != nil {
 		return nil, err
@@ -250,7 +263,7 @@ func ImportDin(path string, id int64) ([]model.Rand, error) {
 		valoare := cota
 		out[i] = model.Rand{
 			Denumire:             denumireSau(in.Denumire, nr),
-			UM:                   umNota(in.UM),
+			UM:                   umuri[i],
 			Cantitate:            in.Cantitate,
 			PretFaraTVA:          in.PretFaraTVA,
 			CotaTVA:              in.CotaTVA,
@@ -304,14 +317,20 @@ func citesteIntrare(db *sql.DB, id int64) ([]intrare, error) {
 // umNota translates the sibling's unit into the two this form writes. The
 // other application types "Kg"; this one writes "Kg." everywhere, and a notă
 // carrying both spellings would be a notă with two units.
-func umNota(um string) string {
-	switch strings.TrimSpace(um) {
-	case "Kg", "kg", "Kg.":
-		return "Kg."
+//
+// A blank unit — the column allows one, empty string included — is treated as
+// a kilogram, matching the default the frontend gives a freshly added row. A
+// genuinely different unit is refused rather than relabelled: turning litres
+// into kilograms on an accounting document is worse than a loud refusal.
+func umNota(um string) (string, error) {
+	trimmed := strings.TrimSpace(um)
+	switch trimmed {
+	case "", "Kg", "kg", "Kg.":
+		return "Kg.", nil
 	case "Buc", "buc", "Buc.":
-		return "Buc."
+		return "Buc.", nil
 	default:
-		return um
+		return "", fmt.Errorf("%w: %q", ErrUM, trimmed)
 	}
 }
 
@@ -337,7 +356,7 @@ func verificaForma(db *sql.DB) error {
 	}
 	necesare := map[string][]string{
 		"documents":             {"id", "nr", "data", "gestiune"},
-		"document_intrare_rows": {"document_id", "pozitie", "denumire", "um", "cantitate", "pret_fara_tva", "cota_tva"},
+		"document_intrare_rows": {"document_id", "pozitie", "denumire", "um", "cantitate", "pret_fara_tva", "pret_cu_tva", "cota_tva"},
 		"document_iesire_rows":  {"document_id", "cantitate", "pret_cu_tva"},
 	}
 	for tabel, coloane := range necesare {
