@@ -1,0 +1,22 @@
+Notă de recepție
+================
+
+Instalare
+---------
+
+1. Trage aplicația peste folderul "Applications".
+
+2. La prima pornire, macOS o poate refuza („dezvoltator neidentificat" sau
+   „aplicația este deteriorată"), pentru că nu este semnată digital.
+   Se rezolvă o singură dată, din Terminal:
+
+   xattr -dr com.apple.quarantine "/Applications/Nota de receptie.app"
+
+Date
+----
+
+Baza de date se creează la prima pornire în:
+
+   ~/Library/Application Support/nota-de-receptie/data.db
+
+Ea NU este ștearsă când muți sau ștergi aplicația.
