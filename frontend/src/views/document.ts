@@ -281,7 +281,15 @@ export async function renderDocumentView(
       denumire.addEventListener('keydown', (e) => navigheazaCombo(e, index, denumire));
       // Blur closes on the next tick so a click on a suggestion lands before
       // the list is removed; a click removes it itself, so nothing flickers.
-      denumire.addEventListener('blur', () => window.setTimeout(inchideCombo, 150));
+      // The close is conditional on comboRand still being this row: focus can
+      // move straight from this field into another row's, whose own focus
+      // handler has already opened its list by the time this timer fires —
+      // an unconditional close would tear that fresh list down instead.
+      denumire.addEventListener('blur', () =>
+        window.setTimeout(() => {
+          if (comboRand === index) inchideCombo();
+        }, 150),
+      );
     });
 
     outlet.querySelector<HTMLButtonElement>('#add-rand')!.addEventListener('click', () => {
@@ -336,6 +344,13 @@ export async function renderDocumentView(
   function deschideCombo(index: number, input: HTMLInputElement): void {
     inchideCombo();
     comboRand = index;
+    // Rebuilding the list (any keystroke, or opening it fresh on focus)
+    // always resets the highlight to the first entry. Arrow navigation moves
+    // it afterwards by mutating classes directly in navigheazaCombo, without
+    // going back through here — so this reset never fights arrow-key use; it
+    // only stops a re-typed search from keeping an old index that now points
+    // at a different, re-sorted product.
+    comboEvidentiat = 0;
 
     const potriviri = cautaProduse(produse, input.value);
     const exact = produse.some(
@@ -344,7 +359,6 @@ export async function renderDocumentView(
     const poateFiSalvat = input.value.trim() !== '' && !exact;
 
     if (potriviri.length === 0 && !poateFiSalvat) return;
-    if (comboEvidentiat >= potriviri.length) comboEvidentiat = 0;
 
     const lista = document.createElement('ul');
     lista.className = 'combo-lista';
