@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-const schemaVersion = 1
+const schemaVersion = 2
 
 const schemaSQL = `
 CREATE TABLE IF NOT EXISTS settings (
@@ -56,7 +56,8 @@ CREATE TABLE IF NOT EXISTS document_rows (
   cantitate     REAL    NOT NULL DEFAULT 0,
   pret_fara_tva REAL    NOT NULL DEFAULT 0,
   cota_tva      REAL    NOT NULL DEFAULT 11,
-  pret_vanzare  REAL    NOT NULL DEFAULT 0
+  pret_vanzare  REAL    NOT NULL DEFAULT 0,
+  valoare_vanzare_impusa REAL
 );
 CREATE INDEX IF NOT EXISTS idx_rows_document ON document_rows(document_id, pozitie);
 `
@@ -78,6 +79,9 @@ func migrate(db *sql.DB) error {
 	if _, err := db.Exec(schemaSQL); err != nil {
 		return err
 	}
+	if err := adaugaValoareVanzareImpusa(db); err != nil {
+		return err
+	}
 	if _, err := db.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, schemaVersion)); err != nil {
 		return err
 	}
@@ -94,4 +98,41 @@ func migrate(db *sql.DB) error {
 		defaultUnitate, defaultCotaTVA,
 	)
 	return err
+}
+
+// adaugaValoareVanzareImpusa brings a version 1 file up to the version 2
+// shape. It is the project's first real migration: the application has
+// shipped, so the column is added to the table that exists rather than the
+// table being dropped and rebuilt.
+//
+// The guard is the column's absence, not the version number. A brand new
+// database already has the column — schemaSQL just created it — while its
+// user_version is still 0, so a version-driven migration would try to add it a
+// second time and fail on every first start.
+func adaugaValoareVanzareImpusa(db *sql.DB) error {
+	are, err := areColoana(db, "document_rows", "valoare_vanzare_impusa")
+	if err != nil {
+		return err
+	}
+	if are {
+		return nil
+	}
+	if _, err := db.Exec(
+		`ALTER TABLE document_rows ADD COLUMN valoare_vanzare_impusa REAL`,
+	); err != nil {
+		return fmt.Errorf("adaugare coloana valoare_vanzare_impusa: %w", err)
+	}
+	return nil
+}
+
+// areColoana reports whether a table already has a column.
+func areColoana(db *sql.DB, tabel, coloana string) (bool, error) {
+	var n int
+	err := db.QueryRow(
+		`SELECT COUNT(*) FROM pragma_table_info(?) WHERE name = ?`, tabel, coloana,
+	).Scan(&n)
+	if err != nil {
+		return false, fmt.Errorf("citire forma tabelului %s: %w", tabel, err)
+	}
+	return n > 0, nil
 }

@@ -57,7 +57,7 @@ func (s *Store) GetDocument(id int64) (model.Document, error) {
 func (s *Store) randuri(documentID int64) ([]model.Rand, error) {
 	rows, err := s.db.Query(
 		`SELECT id, product_id, pozitie, denumire, um, cantitate, pret_fara_tva,
-		        cota_tva, pret_vanzare
+		        cota_tva, pret_vanzare, valoare_vanzare_impusa
 		 FROM document_rows WHERE document_id = ? ORDER BY pozitie, id`, documentID,
 	)
 	if err != nil {
@@ -69,13 +69,18 @@ func (s *Store) randuri(documentID int64) ([]model.Rand, error) {
 	for rows.Next() {
 		var r model.Rand
 		var productID sql.NullInt64
+		var impusa sql.NullFloat64
 		if err := rows.Scan(&r.ID, &productID, &r.Pozitie, &r.Denumire, &r.UM,
-			&r.Cantitate, &r.PretFaraTVA, &r.CotaTVA, &r.PretVanzare); err != nil {
+			&r.Cantitate, &r.PretFaraTVA, &r.CotaTVA, &r.PretVanzare, &impusa); err != nil {
 			return nil, fmt.Errorf("citire rand: %w", err)
 		}
 		if productID.Valid {
 			id := productID.Int64
 			r.ProductID = &id
+		}
+		if impusa.Valid {
+			v := impusa.Float64
+			r.ValoareVanzareImpusa = &v
 		}
 		out = append(out, r)
 	}
@@ -148,12 +153,16 @@ func (s *Store) SaveDocument(doc model.Document) (model.Document, error) {
 		if r.ProductID != nil {
 			productID = *r.ProductID
 		}
+		var impusa any
+		if r.ValoareVanzareImpusa != nil {
+			impusa = *r.ValoareVanzareImpusa
+		}
 		res, err := tx.Exec(
 			`INSERT INTO document_rows (document_id, product_id, pozitie, denumire, um,
-			        cantitate, pret_fara_tva, cota_tva, pret_vanzare)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			        cantitate, pret_fara_tva, cota_tva, pret_vanzare, valoare_vanzare_impusa)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			doc.ID, productID, r.Pozitie, r.Denumire, r.UM, r.Cantitate,
-			r.PretFaraTVA, r.CotaTVA, r.PretVanzare,
+			r.PretFaraTVA, r.CotaTVA, r.PretVanzare, impusa,
 		)
 		if err != nil {
 			return model.Document{}, fmt.Errorf("salvare rand %d: %w", i+1, err)
