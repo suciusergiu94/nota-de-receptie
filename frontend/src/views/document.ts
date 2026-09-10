@@ -13,7 +13,8 @@ import {
 import type { Document, Product, Rand } from '../api';
 import { totaluri, valoriRand } from '../calc';
 import { showAlert, showConfirm } from '../dialog';
-import { UM_PERMISE, randGol, validareDocument } from '../nota';
+import { cautaProduse } from '../fuzzy';
+import { UM_PERMISE, randDinProdus, randGol, validareDocument } from '../nota';
 import { formatDateRO, formatLei, formatNumber, formatProcent, parseDateRO, parseNumber } from '../format';
 import { navigate } from '../router';
 import { escapeHtml } from '../sidebar';
@@ -273,6 +274,14 @@ export async function renderDocumentView(
         doc.randuri.splice(index, 1);
         render();
       });
+
+      const denumire = rand.querySelector<HTMLInputElement>('input.denumire')!;
+      denumire.addEventListener('input', () => deschideCombo(index, denumire));
+      denumire.addEventListener('focus', () => deschideCombo(index, denumire));
+      denumire.addEventListener('keydown', (e) => navigheazaCombo(e, index, denumire));
+      // Blur closes on the next tick so a click on a suggestion lands before
+      // the list is removed; a click removes it itself, so nothing flickers.
+      denumire.addEventListener('blur', () => window.setTimeout(inchideCombo, 150));
     });
 
     outlet.querySelector<HTMLButtonElement>('#add-rand')!.addEventListener('click', () => {
@@ -314,6 +323,137 @@ export async function renderDocumentView(
         break;
       default:
         r[camp] = parseNumber(valoare);
+    }
+  }
+
+  // The index of the row whose suggestion list is open, and which entry is
+  // highlighted in it. They live here rather than on the DOM because the list
+  // is rebuilt on every keystroke and would lose the highlight otherwise.
+  let comboRand: number | undefined;
+  let comboEvidentiat = 0;
+
+  /** Draws (or redraws) the suggestion list under one row's name field. */
+  function deschideCombo(index: number, input: HTMLInputElement): void {
+    inchideCombo();
+    comboRand = index;
+
+    const potriviri = cautaProduse(produse, input.value);
+    const exact = produse.some(
+      (p) => p.denumire.trim().toLowerCase() === input.value.trim().toLowerCase(),
+    );
+    const poateFiSalvat = input.value.trim() !== '' && !exact;
+
+    if (potriviri.length === 0 && !poateFiSalvat) return;
+    if (comboEvidentiat >= potriviri.length) comboEvidentiat = 0;
+
+    const lista = document.createElement('ul');
+    lista.className = 'combo-lista';
+    lista.innerHTML =
+      potriviri
+        .map(
+          (p, i) => `
+        <li data-produs="${p.id}" class="${i === comboEvidentiat ? 'evidentiat' : ''}">
+          ${escapeHtml(p.denumire)}<span class="produs-um">${escapeHtml(p.um)}</span>
+        </li>`,
+        )
+        .join('') +
+      (poateFiSalvat
+        ? `<li class="combo-nou" data-nou="1">„${escapeHtml(input.value.trim())}" nu este în produse —
+             <strong>salvează-l</strong></li>`
+        : '');
+
+    // mousedown, not click: the field's blur fires first on a click, and the
+    // handler would then be running against a list already being torn down.
+    lista.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const li = (e.target as HTMLElement).closest('li');
+      if (li === null) return;
+      if (li.dataset.nou === '1') {
+        void salveazaProdusNou(index, input);
+        return;
+      }
+      const produs = produse.find((p) => p.id === Number(li.dataset.produs));
+      if (produs !== undefined) alegeProdus(index, produs);
+    });
+
+    input.closest('td')!.appendChild(lista);
+  }
+
+  function inchideCombo(): void {
+    outlet.querySelectorAll('.combo-lista').forEach((el) => el.remove());
+    comboRand = undefined;
+  }
+
+  /** Arrow keys move the highlight, Enter takes it, Escape closes the list. */
+  function navigheazaCombo(e: KeyboardEvent, index: number, input: HTMLInputElement): void {
+    const lista = outlet.querySelector<HTMLUListElement>('.combo-lista');
+    if (lista === null || comboRand !== index) return;
+    const optiuni = lista.querySelectorAll<HTMLLIElement>('li[data-produs]');
+
+    if (e.key === 'Escape') {
+      inchideCombo();
+      return;
+    }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (optiuni.length === 0) return;
+      comboEvidentiat =
+        (comboEvidentiat + (e.key === 'ArrowDown' ? 1 : optiuni.length - 1)) % optiuni.length;
+      optiuni.forEach((li, i) => li.classList.toggle('evidentiat', i === comboEvidentiat));
+      return;
+    }
+    if (e.key === 'Enter' && optiuni.length > 0) {
+      e.preventDefault();
+      const produs = produse.find(
+        (p) => p.id === Number(optiuni[comboEvidentiat].dataset.produs),
+      );
+      if (produs !== undefined) alegeProdus(index, produs);
+    }
+  }
+
+  /**
+   * Replaces a row with one started from the chosen product, keeping whatever
+   * has already been typed into it. The quantity and the purchase price belong
+   * to this delivery, not to the catalogue, so picking a product must not wipe
+   * figures the user has already entered for them.
+   */
+  function alegeProdus(index: number, produs: Product): void {
+    const vechi = doc.randuri[index];
+    const nou = randDinProdus(produs);
+    nou.cantitate = vechi.cantitate;
+    nou.pretFaraTva = vechi.pretFaraTva;
+    doc.randuri[index] = nou;
+    inchideCombo();
+    render();
+    // Typing continues in the field that was just filled in.
+    outlet.querySelectorAll<HTMLInputElement>('input.denumire')[index]?.focus();
+  }
+
+  /**
+   * Files the typed name as a new product and attaches the row to it.
+   *
+   * The unit, the selling price and the rate come from the row as it stands:
+   * the user has just typed them, and asking for them again in Setări would be
+   * asking twice for the same answer.
+   */
+  async function salveazaProdusNou(index: number, input: HTMLInputElement): Promise<void> {
+    const r = doc.randuri[index];
+    try {
+      const produs = await AddProduct({
+        id: 0,
+        denumire: input.value.trim(),
+        um: r.um,
+        pretVanzare: r.pretVanzare,
+        cotaTva: r.cotaTva,
+        ordine: 0,
+      } as unknown as Product);
+      produse = await ListProducts();
+      doc.randuri[index] = { ...r, productId: produs.id, denumire: produs.denumire } as Rand;
+      inchideCombo();
+      render();
+      showToast(`„${produs.denumire}" a fost adăugat în produse.`);
+    } catch (err) {
+      showError('Nu s-a putut salva produsul', err);
     }
   }
 
