@@ -40,6 +40,40 @@ describe('valoriRand', () => {
     expect(v.valoareCuTva).toBe(121);
     expect(v.adaos).toBe(19);
   });
+
+  it('foloseste valoarea de vanzare impusa in locul inmultirii', () => {
+    const v = valoriRand({
+      cantitate: 162.2,
+      pretFaraTva: 12.3,
+      cotaTva: 11,
+      pretVanzare: 15.42,
+      valoareVanzareImpusa: 2501.35,
+    });
+    expect(v.valoareFaraTva).toBe(1995.06);
+    expect(v.valoareCuTva).toBe(2214.52);
+    expect(v.valoareVanzare).toBe(2501.35);
+    expect(v.adaos).toBe(286.83);
+    expect(v.adaosProcent).toBe(12.95);
+  });
+
+  it('trateaza null si undefined ca "nimic impus"', () => {
+    const cuNull = valoriRand({
+      cantitate: 10, pretFaraTva: 5, cotaTva: 11, pretVanzare: 8,
+      valoareVanzareImpusa: null,
+    });
+    expect(cuNull.valoareVanzare).toBe(80);
+
+    const fara = valoriRand({ cantitate: 10, pretFaraTva: 5, cotaTva: 11, pretVanzare: 8 });
+    expect(fara.valoareVanzare).toBe(80);
+  });
+
+  it('deosebeste zero impus de lipsa valorii impuse', () => {
+    const v = valoriRand({
+      cantitate: 10, pretFaraTva: 5, cotaTva: 11, pretVanzare: 8,
+      valoareVanzareImpusa: 0,
+    });
+    expect(v.valoareVanzare).toBe(0);
+  });
 });
 
 describe('totaluri', () => {
@@ -60,5 +94,16 @@ describe('totaluri', () => {
     const t = totaluri([]);
     expect(t.valoareCuTva).toBe(0);
     expect(t.adaosProcent).toBeUndefined();
+  });
+
+  it('insumeaza si randurile cu valoare impusa', () => {
+    const tot = totaluri([
+      { cantitate: 10, pretFaraTva: 20, cotaTva: 11, pretVanzare: 30 },
+      {
+        cantitate: 162.2, pretFaraTva: 12.3, cotaTva: 11, pretVanzare: 15.42,
+        valoareVanzareImpusa: 2501.35,
+      },
+    ]);
+    expect(tot.valoareVanzare).toBe(2801.35);
   });
 });

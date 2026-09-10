@@ -10,6 +10,7 @@ export namespace model {
 	    pretFaraTva: number;
 	    cotaTva: number;
 	    pretVanzare: number;
+	    valoareVanzareImpusa?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new Rand(source);
@@ -26,6 +27,7 @@ export namespace model {
 	        this.pretFaraTva = source["pretFaraTva"];
 	        this.cotaTva = source["cotaTva"];
 	        this.pretVanzare = source["pretVanzare"];
+	        this.valoareVanzareImpusa = source["valoareVanzareImpusa"];
 	    }
 	}
 	export class Document {

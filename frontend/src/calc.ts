@@ -12,6 +12,13 @@ export interface RandCalculabil {
   pretFaraTva: number;
   cotaTva: number;
   pretVanzare: number;
+  /**
+   * The row's valoare la preț de vânzare when it came from a proces verbal de
+   * transare, instead of the cantitate × preț this file derives for every
+   * other row. Null and undefined both mean "nothing imposed": the Go side
+   * omits the field when it is nil, but a row built here may carry it null.
+   */
+  valoareVanzareImpusa?: number | null;
 }
 
 /** What a row, or a whole document, comes to. */
@@ -37,7 +44,10 @@ export function round2(v: number): number {
 export function valoriRand(r: RandCalculabil): Valori {
   const faraTva = round2(r.cantitate * r.pretFaraTva);
   const cuTva = round2(faraTva * (1 + r.cotaTva / 100));
-  const vanzare = round2(r.cantitate * r.pretVanzare);
+  const vanzare =
+    r.valoareVanzareImpusa === undefined || r.valoareVanzareImpusa === null
+      ? round2(r.cantitate * r.pretVanzare)
+      : round2(r.valoareVanzareImpusa);
   return valoriDin(faraTva, cuTva, vanzare);
 }
 
