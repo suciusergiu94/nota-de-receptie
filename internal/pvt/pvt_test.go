@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"nota-de-receptie/internal/calc"
 )
 
 func TestListaCiteseProceseleVerbale(t *testing.T) {
@@ -99,6 +101,96 @@ func TestRefuzaOBazaCareAPierdutOColoana(t *testing.T) {
 
 	if _, err := ListaDin(path); !errors.Is(err, ErrForma) {
 		t.Errorf("err = %v, vrem ErrForma", err)
+	}
+}
+
+func TestImportulUneiCarcase(t *testing.T) {
+	randuri, err := ImportDin(fixtura(t), 1)
+	if err != nil {
+		t.Fatalf("ImportDin: %v", err)
+	}
+	if len(randuri) != 1 {
+		t.Fatalf("randuri = %d, vrem 1", len(randuri))
+	}
+	r := randuri[0]
+	if r.Denumire != "Carcasa" {
+		t.Errorf("Denumire = %q, vrem \"Carcasa\"", r.Denumire)
+	}
+	if r.UM != "Kg." {
+		t.Errorf("UM = %q, vrem \"Kg.\" (normalizat din \"Kg\")", r.UM)
+	}
+	if r.ProductID != nil {
+		t.Error("randul importat nu trebuie sa fie legat de un produs din catalog")
+	}
+	aproape(t, "Cantitate", r.Cantitate, 162.2)
+	aproape(t, "PretFaraTVA", r.PretFaraTVA, 12.30)
+	aproape(t, "CotaTVA", r.CotaTVA, 11)
+	if r.ValoareVanzareImpusa == nil {
+		t.Fatal("ValoareVanzareImpusa = nil")
+	}
+	aproape(t, "ValoareVanzareImpusa", *r.ValoareVanzareImpusa, 2501.35)
+	// 2501.35 / 162.2 = 15.4214..., informativ, rotunjit ca tot formularul.
+	aproape(t, "PretVanzare", r.PretVanzare, 15.42)
+}
+
+func TestImportulImparteIntreDouaRanduriDeIntrare(t *testing.T) {
+	randuri, err := ImportDin(fixtura(t), 2)
+	if err != nil {
+		t.Fatalf("ImportDin: %v", err)
+	}
+	if len(randuri) != 2 {
+		t.Fatalf("randuri = %d, vrem 2", len(randuri))
+	}
+	if randuri[0].Denumire != "Carcasa" || randuri[1].Denumire != "Pulpa vita Angus" {
+		t.Errorf("ordinea randurilor de intrare nu s-a pastrat: %q, %q",
+			randuri[0].Denumire, randuri[1].Denumire)
+	}
+	var total float64
+	for _, r := range randuri {
+		if r.ValoareVanzareImpusa == nil {
+			t.Fatalf("randul %q nu are valoare impusa", r.Denumire)
+		}
+		total += *r.ValoareVanzareImpusa
+	}
+	// Cele doua intrari sunt identice ca valoare, deci impartirea e la egalitate.
+	aproape(t, "total impartit", calc.Round2(total), 100)
+	aproape(t, "cota[0]", *randuri[0].ValoareVanzareImpusa, 50)
+	aproape(t, "cota[1]", *randuri[1].ValoareVanzareImpusa, 50)
+}
+
+func TestImportulRefuzaUnProcesVerbalFaraIntrari(t *testing.T) {
+	path := fixtura(t)
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	if _, err := db.Exec(`DELETE FROM document_intrare_rows WHERE document_id = 1`); err != nil {
+		t.Fatalf("golire intrare: %v", err)
+	}
+	db.Close()
+
+	if _, err := ImportDin(path, 1); !errors.Is(err, ErrFaraIntrare) {
+		t.Errorf("err = %v, vrem ErrFaraIntrare", err)
+	}
+}
+
+func TestImportulRefuzaUnIdInexistent(t *testing.T) {
+	if _, err := ImportDin(fixtura(t), 99); err == nil {
+		t.Error("un id inexistent trebuie sa dea eroare")
+	}
+}
+
+func TestImportulNuAtingeFisierulCeluilaltProiect(t *testing.T) {
+	path := fixtura(t)
+	inainte := amprenta(t, path)
+
+	if _, err := ImportDin(path, 1); err != nil {
+		t.Fatalf("ImportDin: %v", err)
+	}
+
+	if dupa := amprenta(t, path); dupa != inainte {
+		t.Errorf("fisierul s-a schimbat dupa un import:\ninainte = %+v\ndupa    = %+v",
+			inainte, dupa)
 	}
 }
 

@@ -20,6 +20,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	"nota-de-receptie/internal/calc"
+	"nota-de-receptie/internal/model"
 )
 
 // dirName is the sibling application's folder inside the user's config
@@ -183,6 +184,145 @@ func deschide(path string) (*sql.DB, error) {
 		return nil, err
 	}
 	return db, nil
+}
+
+// intrare is one row of a proces verbal's "ce intra" table — the only shape
+// this package reads out of the sibling's documents.
+type intrare struct {
+	Denumire    string
+	UM          string
+	Cantitate   float64
+	PretFaraTVA float64
+	PretCuTVA   float64
+	CotaTVA     float64
+}
+
+// Import turns one proces verbal into rows ready to append to a notă.
+//
+// The figures are copied, not linked: from here on the notă owns them, and
+// editing the proces verbal later leaves a filed document alone — the same
+// rule its rows already follow towards the product catalogue.
+func Import(id int64) ([]model.Rand, error) {
+	path, err := DBPath()
+	if err != nil {
+		return nil, err
+	}
+	return ImportDin(path, id)
+}
+
+// ImportDin is Import against an explicit file.
+func ImportDin(path string, id int64) ([]model.Rand, error) {
+	db, err := deschide(path)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	var nr int
+	if err := db.QueryRow(`SELECT nr FROM documents WHERE id = ?`, id).Scan(&nr); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("procesul verbal cerut nu mai exista")
+		}
+		return nil, fmt.Errorf("citire proces verbal: %w", err)
+	}
+
+	intrari, err := citesteIntrare(db, id)
+	if err != nil {
+		return nil, err
+	}
+	if len(intrari) == 0 {
+		return nil, ErrFaraIntrare
+	}
+
+	totaluri, err := totaluriIesire(db)
+	if err != nil {
+		return nil, err
+	}
+	cote := coteleIntrarilor(intrari, totaluri[id])
+
+	out := make([]model.Rand, len(intrari))
+	for i, in := range intrari {
+		cota := cote[i]
+		var pretVanzare float64
+		if in.Cantitate != 0 {
+			pretVanzare = calc.Round2(cota / in.Cantitate)
+		}
+		valoare := cota
+		out[i] = model.Rand{
+			Denumire:             denumireSau(in.Denumire, nr),
+			UM:                   umNota(in.UM),
+			Cantitate:            in.Cantitate,
+			PretFaraTVA:          in.PretFaraTVA,
+			CotaTVA:              in.CotaTVA,
+			PretVanzare:          pretVanzare,
+			ValoareVanzareImpusa: &valoare,
+		}
+	}
+	return out, nil
+}
+
+// coteleIntrarilor splits the "ce iese" total across the "ce intra" rows by
+// what each of them cost. Rows all priced at zero carry no proportion, and the
+// quantities are the next best thing to share it out by.
+func coteleIntrarilor(intrari []intrare, total float64) []float64 {
+	valori := make([]float64, len(intrari))
+	var suma float64
+	for i, in := range intrari {
+		valori[i] = calc.Round2(in.Cantitate * in.PretCuTVA)
+		suma += valori[i]
+	}
+	if suma == 0 {
+		for i, in := range intrari {
+			valori[i] = in.Cantitate
+		}
+	}
+	return Cote(valori, total)
+}
+
+func citesteIntrare(db *sql.DB, id int64) ([]intrare, error) {
+	rows, err := db.Query(
+		`SELECT denumire, um, cantitate, pret_fara_tva, pret_cu_tva, cota_tva
+		 FROM document_intrare_rows WHERE document_id = ? ORDER BY pozitie, id`, id,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("citire tabel \"ce intra\": %w", err)
+	}
+	defer rows.Close()
+
+	out := []intrare{}
+	for rows.Next() {
+		var in intrare
+		if err := rows.Scan(&in.Denumire, &in.UM, &in.Cantitate,
+			&in.PretFaraTVA, &in.PretCuTVA, &in.CotaTVA); err != nil {
+			return nil, fmt.Errorf("citire rand \"ce intra\": %w", err)
+		}
+		out = append(out, in)
+	}
+	return out, rows.Err()
+}
+
+// umNota translates the sibling's unit into the two this form writes. The
+// other application types "Kg"; this one writes "Kg." everywhere, and a notă
+// carrying both spellings would be a notă with two units.
+func umNota(um string) string {
+	switch strings.TrimSpace(um) {
+	case "Kg", "kg", "Kg.":
+		return "Kg."
+	case "Buc", "buc", "Buc.":
+		return "Buc."
+	default:
+		return um
+	}
+}
+
+// denumireSau falls back to the document's number when the "ce intra" row was
+// left unnamed — that column allows an empty string, and a blank row on a
+// reception is worse than a plain one.
+func denumireSau(denumire string, nr int) string {
+	if strings.TrimSpace(denumire) == "" {
+		return fmt.Sprintf("Proces verbal nr. %d", nr)
+	}
+	return denumire
 }
 
 // verificaForma refuses a database this package cannot read correctly, which
