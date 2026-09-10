@@ -54,8 +54,8 @@ pur Go, deci cross-compilarea nu are nevoie de un toolchain Windows.
 ## Instalatoare
 
 ```bash
-make mac        # dist/NotaDeReceptie-1.0.0-macOS.dmg
-make windows    # dist/NotaDeReceptie-1.0.0-Windows-Setup.exe
+make mac        # dist/NotaDeReceptie-1.0.1-macOS.dmg
+make windows    # dist/NotaDeReceptie-1.0.1-Windows-Setup.exe
 make all        # ambele
 ```
 
