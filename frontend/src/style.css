@@ -467,3 +467,12 @@ td.derivat.negativ {
   color: var(--danger);
 }
 
+.furnizor-rand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
