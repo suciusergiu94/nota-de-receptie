@@ -45,6 +45,16 @@ type Rand struct {
 	PretFaraTVA float64 `json:"pretFaraTva"`
 	CotaTVA     float64 `json:"cotaTva"`
 	PretVanzare float64 `json:"pretVanzare"`
+	// ValoareVanzareImpusa, when set, is the row's valoare la preț de vânzare
+	// as it came from a proces verbal de transare, rather than the cantitate ×
+	// pret de vânzare the other rows derive it from. Its presence is also what
+	// makes the row read-only in the form: the figure it carries only means
+	// anything beside the quantity and price it was worked out from.
+	//
+	// A pointer rather than a zero sentinel: a proces verbal whose "ce iese"
+	// table comes to 0 — nothing but waste — is a valid document, and an
+	// imposed zero has to be distinguishable from nothing imposed at all.
+	ValoareVanzareImpusa *float64 `json:"valoareVanzareImpusa,omitempty"`
 }
 
 // Document is a full notă de recepție.

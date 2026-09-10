@@ -42,6 +42,12 @@ func ValoriRand(r model.Rand) Valori {
 	faraTVA := Round2(r.Cantitate * r.PretFaraTVA)
 	cuTVA := Round2(faraTVA * (1 + r.CotaTVA/100))
 	vanzare := Round2(r.Cantitate * r.PretVanzare)
+	// A row imported from a proces verbal carries the figure its "ce iese"
+	// table came to. Re-deriving it from the rounded unit price would miss it
+	// by up to a leu on a whole carcass, and the two documents have to agree.
+	if r.ValoareVanzareImpusa != nil {
+		vanzare = Round2(*r.ValoareVanzareImpusa)
+	}
 	return valoriDin(faraTVA, cuTVA, vanzare)
 }
 
